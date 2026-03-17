@@ -33,6 +33,7 @@ class SubagentManager:
         web_proxy: str | None = None,
         exec_config: "ExecToolConfig | None" = None,
         restrict_to_workspace: bool = False,
+        x_diabetes_config: "XDiabetesConfig | None" = None,
     ):
         from nanobot.config.schema import ExecToolConfig, WebSearchConfig
 
@@ -44,6 +45,7 @@ class SubagentManager:
         self.web_proxy = web_proxy
         self.exec_config = exec_config or ExecToolConfig()
         self.restrict_to_workspace = restrict_to_workspace
+        self.x_diabetes_config = x_diabetes_config
         self._running_tasks: dict[str, asyncio.Task[None]] = {}
         self._session_tasks: dict[str, set[str]] = {}  # session_key -> {task_id, ...}
 
@@ -106,6 +108,14 @@ class SubagentManager:
             ))
             tools.register(WebSearchTool(config=self.web_search_config, proxy=self.web_proxy))
             tools.register(WebFetchTool(proxy=self.web_proxy))
+            if self.x_diabetes_config and self.x_diabetes_config.enabled:
+                from nanobot.x_diabetes import register_x_diabetes_tools
+
+                register_x_diabetes_tools(
+                    tools,
+                    workspace=self.workspace,
+                    config=self.x_diabetes_config,
+                )
             
             system_prompt = self._build_subagent_prompt()
             messages: list[dict[str, Any]] = [

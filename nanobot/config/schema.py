@@ -142,6 +142,59 @@ class MCPServerConfig(Base):
     tool_timeout: int = 30  # seconds before a tool call is cancelled
     enabled_tools: list[str] = Field(default_factory=lambda: ["*"])  # Only register these tools; accepts raw MCP names or wrapped mcp_<server>_<tool> names; ["*"] = all tools; [] = no tools
 
+
+class XDiabetesDTMHConfig(Base):
+    """DTMH backend configuration for the X-Diabetes profile."""
+
+    backend: Literal["mock", "python", "http", "mcp", "disabled"] = "mock"
+    timeout_s: int = 30
+    python_entrypoint: str = ""
+    http_base_url: str = ""
+    mcp_server_name: str = ""
+
+
+class XDiabetesMemoryConfig(Base):
+    """Patient-level longitudinal memory configuration."""
+
+    enabled: bool = True
+    patient_memory_dir: str = "patient_memory"
+    timeline_max_read: int = 10
+    summary_filename: str = "summary.md"
+    write_encounter: bool = True
+    write_risk_assessment: bool = True
+    write_report_index: bool = True
+
+
+class XDiabetesRAGConfig(Base):
+    """Knowledge retrieval configuration for X-Diabetes."""
+
+    backend: Literal["local", "api", "hybrid", "disabled"] = "local"
+    api_base_url: str = ""
+    search_endpoint: str = "/search"
+    health_endpoint: str = "/health"
+    timeout_s: int = 3
+    top_k: int = 3
+    ignore_failure: bool = True
+    fallback_to_local: bool = False
+    headers: dict[str, str] = Field(default_factory=dict)
+
+
+class XDiabetesConfig(Base):
+    """Feature flag and runtime configuration for the X-Diabetes profile."""
+
+    enabled: bool = False
+    workspace: str = "~/.nanobot/xdiabetes-workspace"
+    mode: Literal["doctor", "patient"] = "doctor"
+    default_patient_id: str = "demo_patient"
+    cases_dir: str = "cases"
+    knowledge_dir: str = "knowledge"
+    reports_dir: str = "reports"
+    rules_path: str = "rules/default_rules.json"
+    dtmh: XDiabetesDTMHConfig = Field(default_factory=XDiabetesDTMHConfig)
+    memory: XDiabetesMemoryConfig = Field(default_factory=XDiabetesMemoryConfig)
+    rag: XDiabetesRAGConfig = Field(default_factory=XDiabetesRAGConfig)
+
+
 class ToolsConfig(Base):
     """Tools configuration."""
 
@@ -159,6 +212,7 @@ class Config(BaseSettings):
     providers: ProvidersConfig = Field(default_factory=ProvidersConfig)
     gateway: GatewayConfig = Field(default_factory=GatewayConfig)
     tools: ToolsConfig = Field(default_factory=ToolsConfig)
+    x_diabetes: XDiabetesConfig = Field(default_factory=XDiabetesConfig)
 
     @property
     def workspace_path(self) -> Path:
@@ -258,4 +312,9 @@ class Config(BaseSettings):
                 return spec.default_api_base
         return None
 
-    model_config = ConfigDict(env_prefix="NANOBOT_", env_nested_delimiter="__")
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        env_prefix="NANOBOT_",
+        env_nested_delimiter="__",
+    )
