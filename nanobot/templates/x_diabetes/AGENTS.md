@@ -27,3 +27,5 @@ Provide structured diabetes analysis support for clinicians and researchers whil
 - Reports are saved under `reports/`
 - Local evidence is stored in `knowledge/`
 - Patient-level longitudinal memory is stored under `patient_memory/`
+- Continuous-learning artifacts, evaluations, and learned-skill rollbacks are stored under `learning/`
+- Learned skills must be privacy-safe and pass evaluation before activation

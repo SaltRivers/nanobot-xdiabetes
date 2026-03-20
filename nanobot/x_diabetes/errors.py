@@ -29,3 +29,11 @@ class DTMHAdapterError(XDiabetesError):
 
 class SafetyRuleError(XDiabetesError):
     """Raised when safety rules cannot be loaded or evaluated."""
+
+
+class LearningError(XDiabetesError):
+    """Raised when the continuous-learning pipeline cannot complete."""
+
+
+class LearningPrivacyError(LearningError):
+    """Raised when a learning artifact violates the privacy policy."""

@@ -45,6 +45,10 @@ xdiabetes_app = typer.Typer(
     help="X-Diabetes profile commands for diabetes-focused workflows.",
 )
 app.add_typer(xdiabetes_app, name="xdiabetes")
+xdiabetes_learning_app = typer.Typer(
+    help="Manage X-Diabetes continuous learning, review, and activation.",
+)
+xdiabetes_app.add_typer(xdiabetes_learning_app, name="learning")
 
 console = Console()
 EXIT_COMMANDS = {"exit", "quit", "/exit", "/quit", ":q"}
@@ -436,6 +440,25 @@ def _load_xdiabetes_runtime_config(
         loaded.x_diabetes.mode = mode
     loaded.agents.defaults.workspace = workspace or loaded.x_diabetes.workspace
     return loaded
+
+
+def _make_xdiabetes_learning_service(
+    *,
+    config: str | None = None,
+    workspace: str | None = None,
+    mode: str | None = None,
+):
+    """Build the X-Diabetes learning service for CLI management commands."""
+    from nanobot.x_diabetes.learning import XDiabetesLearningService
+    from nanobot.x_diabetes.workspace import prepare_xdiabetes_workspace
+
+    loaded = _load_xdiabetes_runtime_config(config=config, workspace=workspace, mode=mode)
+    prepare_xdiabetes_workspace(loaded.workspace_path, mode=loaded.x_diabetes.mode, silent=True)
+    return XDiabetesLearningService(
+        workspace=loaded.workspace_path,
+        config=loaded.x_diabetes.learning,
+        mode=loaded.x_diabetes.mode,
+    )
 
 
 def _print_deprecated_memory_window_notice(config: Config) -> None:
@@ -891,6 +914,11 @@ def xdiabetes_agent(
     workspace: str | None = typer.Option(None, "--workspace", "-w", help="X-Diabetes workspace directory"),
     config: str | None = typer.Option(None, "--config", "-c", help="Config file path"),
     mode: str = typer.Option("doctor", "--mode", help="Profile mode: doctor or patient"),
+    learning: bool | None = typer.Option(
+        None,
+        "--learning/--no-learning",
+        help="Temporarily enable or disable continuous learning for this run.",
+    ),
     markdown: bool = typer.Option(True, "--markdown/--no-markdown", help="Render assistant output as Markdown"),
     logs: bool = typer.Option(False, "--logs/--no-logs", help="Show nanobot runtime logs during chat"),
 ):
@@ -909,6 +937,8 @@ def xdiabetes_agent(
         raise typer.Exit(1)
 
     config = _load_xdiabetes_runtime_config(config=config, workspace=workspace, mode=mode)
+    if learning is not None:
+        config.x_diabetes.learning.enabled = learning
     _print_deprecated_memory_window_notice(config)
     prepare_xdiabetes_workspace(config.workspace_path, mode=config.x_diabetes.mode)
 
@@ -1066,6 +1096,180 @@ def xdiabetes_agent(
             await agent_loop.close_mcp()
 
     asyncio.run(run_interactive())
+
+
+@xdiabetes_learning_app.command("status")
+def xdiabetes_learning_status(
+    workspace: str | None = typer.Option(None, "--workspace", "-w", help="X-Diabetes workspace directory"),
+    config: str | None = typer.Option(None, "--config", "-c", help="Config file path"),
+    mode: str | None = typer.Option(None, "--mode", help="Profile mode override"),
+):
+    """Show X-Diabetes continuous-learning status."""
+    service = _make_xdiabetes_learning_service(config=config, workspace=workspace, mode=mode)
+    snapshot = service.status_snapshot()
+
+    console.print("[bold]X-Diabetes Continuous Learning[/bold]")
+    table = Table(title="X-Diabetes Continuous Learning")
+    table.add_column("Field")
+    table.add_column("Value")
+    table.add_row("Enabled", str(snapshot.enabled))
+    table.add_row("Strict privacy", str(snapshot.strict_privacy))
+    table.add_row("Require approval", str(snapshot.require_human_approval))
+    table.add_row("Auto activate", str(snapshot.auto_activate))
+    table.add_row("Observations", str(snapshot.observations))
+    table.add_row("Instincts", str(snapshot.instincts))
+    table.add_row("Drafts", str(snapshot.drafts))
+    table.add_row("Approved drafts", str(snapshot.approved_drafts))
+    table.add_row("Rejected drafts", str(snapshot.rejected_drafts))
+    table.add_row("Active skills", ", ".join(snapshot.active_skills) or "(none)")
+    table.add_row("Needs review", ", ".join(snapshot.skills_needing_review) or "(none)")
+    table.add_row(
+        "Last observation",
+        snapshot.last_observation_at.isoformat() if snapshot.last_observation_at else "(none)",
+    )
+    console.print(table)
+
+
+@xdiabetes_learning_app.command("review")
+def xdiabetes_learning_review(
+    workspace: str | None = typer.Option(None, "--workspace", "-w", help="X-Diabetes workspace directory"),
+    config: str | None = typer.Option(None, "--config", "-c", help="Config file path"),
+    mode: str | None = typer.Option(None, "--mode", help="Profile mode override"),
+):
+    """List generated learning drafts and their latest evaluation verdicts."""
+    service = _make_xdiabetes_learning_service(config=config, workspace=workspace, mode=mode)
+    rows = service.reviewable_drafts()
+    if not rows:
+        console.print("[yellow]No learning drafts found.[/yellow]")
+        return
+
+    table = Table(title="Learning Draft Review Queue")
+    table.add_column("Draft ID")
+    table.add_column("Status")
+    table.add_column("Verdict")
+    table.add_column("Warnings")
+    for draft, evaluation in rows:
+        verdict = evaluation.verdict if evaluation else "(not evaluated)"
+        warnings = ", ".join(evaluation.warnings) if evaluation and evaluation.warnings else ""
+        table.add_row(draft.draft_id, draft.status, verdict, warnings or "-")
+    console.print(table)
+
+
+@xdiabetes_learning_app.command("eval")
+def xdiabetes_learning_eval(
+    draft_id: str = typer.Argument(..., help="Draft identifier"),
+    workspace: str | None = typer.Option(None, "--workspace", "-w", help="X-Diabetes workspace directory"),
+    config: str | None = typer.Option(None, "--config", "-c", help="Config file path"),
+    mode: str | None = typer.Option(None, "--mode", help="Profile mode override"),
+):
+    """Re-run evaluation for one learning draft."""
+    service = _make_xdiabetes_learning_service(config=config, workspace=workspace, mode=mode)
+    result = service.evaluate_draft(draft_id)
+    console.print(f"[green]Verdict:[/green] {result.verdict}")
+    if result.blocking_issues:
+        console.print(f"[red]Blocking issues:[/red] {', '.join(result.blocking_issues)}")
+    if result.warnings:
+        console.print(f"[yellow]Warnings:[/yellow] {', '.join(result.warnings)}")
+    console.print(result.rationale)
+
+
+@xdiabetes_learning_app.command("approve")
+def xdiabetes_learning_approve(
+    draft_id: str = typer.Argument(..., help="Draft identifier"),
+    workspace: str | None = typer.Option(None, "--workspace", "-w", help="X-Diabetes workspace directory"),
+    config: str | None = typer.Option(None, "--config", "-c", help="Config file path"),
+    mode: str | None = typer.Option(None, "--mode", help="Profile mode override"),
+):
+    """Approve a learning draft after review."""
+    service = _make_xdiabetes_learning_service(config=config, workspace=workspace, mode=mode)
+    draft = service.approve_draft(draft_id)
+    console.print(f"[green]Approved[/green] draft {draft.draft_id}")
+
+
+@xdiabetes_learning_app.command("reject")
+def xdiabetes_learning_reject(
+    draft_id: str = typer.Argument(..., help="Draft identifier"),
+    reason: str = typer.Option("", "--reason", help="Rejection reason"),
+    workspace: str | None = typer.Option(None, "--workspace", "-w", help="X-Diabetes workspace directory"),
+    config: str | None = typer.Option(None, "--config", "-c", help="Config file path"),
+    mode: str | None = typer.Option(None, "--mode", help="Profile mode override"),
+):
+    """Reject a learning draft."""
+    service = _make_xdiabetes_learning_service(config=config, workspace=workspace, mode=mode)
+    draft = service.reject_draft(draft_id, reason=reason)
+    console.print(f"[green]Rejected[/green] draft {draft.draft_id}")
+
+
+@xdiabetes_learning_app.command("activate")
+def xdiabetes_learning_activate(
+    draft_id: str = typer.Argument(..., help="Draft identifier"),
+    workspace: str | None = typer.Option(None, "--workspace", "-w", help="X-Diabetes workspace directory"),
+    config: str | None = typer.Option(None, "--config", "-c", help="Config file path"),
+    mode: str | None = typer.Option(None, "--mode", help="Profile mode override"),
+):
+    """Activate an approved learning draft as a live workspace skill."""
+    service = _make_xdiabetes_learning_service(config=config, workspace=workspace, mode=mode)
+    path = service.activate_draft(draft_id)
+    console.print(f"[green]Activated[/green] draft {draft_id} at {path}")
+
+
+@xdiabetes_learning_app.command("deactivate")
+def xdiabetes_learning_deactivate(
+    skill_name: str = typer.Argument(..., help="Live learned skill name"),
+    workspace: str | None = typer.Option(None, "--workspace", "-w", help="X-Diabetes workspace directory"),
+    config: str | None = typer.Option(None, "--config", "-c", help="Config file path"),
+    mode: str | None = typer.Option(None, "--mode", help="Profile mode override"),
+):
+    """Deactivate a learned skill from the live workspace."""
+    service = _make_xdiabetes_learning_service(config=config, workspace=workspace, mode=mode)
+    path = service.deactivate_skill(skill_name)
+    console.print(f"[green]Deactivated[/green] {skill_name}; backup saved to {path}")
+
+
+@xdiabetes_learning_app.command("rollback")
+def xdiabetes_learning_rollback(
+    skill_name: str = typer.Argument(..., help="Learned skill name"),
+    workspace: str | None = typer.Option(None, "--workspace", "-w", help="X-Diabetes workspace directory"),
+    config: str | None = typer.Option(None, "--config", "-c", help="Config file path"),
+    mode: str | None = typer.Option(None, "--mode", help="Profile mode override"),
+):
+    """Rollback a learned skill to its latest backup."""
+    service = _make_xdiabetes_learning_service(config=config, workspace=workspace, mode=mode)
+    path = service.rollback_skill(skill_name)
+    console.print(f"[green]Rolled back[/green] {skill_name} to {path}")
+
+
+@xdiabetes_learning_app.command("enable")
+def xdiabetes_learning_enable(
+    config: str | None = typer.Option(None, "--config", "-c", help="Config file path"),
+):
+    """Enable X-Diabetes continuous learning in config."""
+    from nanobot.config.loader import get_config_path, load_config, save_config, set_config_path
+
+    config_path = Path(config).expanduser().resolve() if config else get_config_path()
+    if config:
+        set_config_path(config_path)
+    loaded = load_config(config_path if config else None)
+    loaded.x_diabetes.enabled = True
+    loaded.x_diabetes.learning.enabled = True
+    save_config(loaded, config_path)
+    console.print(f"[green]Enabled[/green] X-Diabetes continuous learning in {config_path}")
+
+
+@xdiabetes_learning_app.command("disable")
+def xdiabetes_learning_disable(
+    config: str | None = typer.Option(None, "--config", "-c", help="Config file path"),
+):
+    """Disable X-Diabetes continuous learning in config."""
+    from nanobot.config.loader import get_config_path, load_config, save_config, set_config_path
+
+    config_path = Path(config).expanduser().resolve() if config else get_config_path()
+    if config:
+        set_config_path(config_path)
+    loaded = load_config(config_path if config else None)
+    loaded.x_diabetes.learning.enabled = False
+    save_config(loaded, config_path)
+    console.print(f"[green]Disabled[/green] X-Diabetes continuous learning in {config_path}")
 
 
 # ============================================================================

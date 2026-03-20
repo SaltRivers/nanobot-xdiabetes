@@ -11,6 +11,13 @@ def test_xdiabetes_config_accepts_camel_case_aliases():
                 "dtmh": {"backend": "mock"},
                 "memory": {"patientMemoryDir": "patient_memory"},
                 "rag": {"backend": "api", "apiBaseUrl": "http://127.0.0.1:8008"},
+                "learning": {
+                    "enabled": True,
+                    "strictPrivacy": True,
+                    "requireHumanApproval": True,
+                    "autoActivate": False,
+                    "learningDir": "learning",
+                },
             }
         }
     )
@@ -22,3 +29,8 @@ def test_xdiabetes_config_accepts_camel_case_aliases():
     assert config.x_diabetes.memory.patient_memory_dir == "patient_memory"
     assert config.x_diabetes.rag.backend == "api"
     assert config.x_diabetes.rag.api_base_url == "http://127.0.0.1:8008"
+    assert config.x_diabetes.learning.enabled is True
+    assert config.x_diabetes.learning.strict_privacy is True
+    assert config.x_diabetes.learning.require_human_approval is True
+    assert config.x_diabetes.learning.auto_activate is False
+    assert config.x_diabetes.learning.learning_dir == "learning"

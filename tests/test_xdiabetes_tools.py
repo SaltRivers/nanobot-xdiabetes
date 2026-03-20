@@ -14,6 +14,8 @@ def test_prepare_xdiabetes_workspace_creates_seed_assets(tmp_path: Path):
     assert (tmp_path / "knowledge" / "manifest.json").exists()
     assert (tmp_path / "rules" / "default_rules.json").exists()
     assert (tmp_path / "patient_memory").exists()
+    assert (tmp_path / "learning" / "observations").exists()
+    assert (tmp_path / "learning" / "policies" / "default_learning_policy.json").exists()
     assert created
 
 

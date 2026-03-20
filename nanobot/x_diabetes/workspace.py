@@ -5,7 +5,11 @@ from __future__ import annotations
 from importlib.resources import files as pkg_files
 from pathlib import Path
 
-from nanobot.x_diabetes.constants import DIRECTORY_TEMPLATES, ROOT_TEMPLATE_FILES
+from nanobot.x_diabetes.constants import (
+    DIRECTORY_TEMPLATES,
+    LEARNING_DIRECTORY_TEMPLATES,
+    ROOT_TEMPLATE_FILES,
+)
 
 
 def prepare_xdiabetes_workspace(workspace: Path, mode: str, silent: bool = False) -> list[str]:
@@ -50,6 +54,25 @@ def prepare_xdiabetes_workspace(workspace: Path, mode: str, silent: bool = False
         for item in source_dir.iterdir():
             target = target_dir / item.name
             if not target.exists():
+                target.write_text(item.read_text(encoding="utf-8"), encoding="utf-8")
+                created.append(str(target.relative_to(workspace)))
+
+    learning_root = workspace / "learning"
+    for dirname in LEARNING_DIRECTORY_TEMPLATES:
+        target_dir = learning_root / dirname
+        if not target_dir.exists():
+            target_dir.mkdir(parents=True, exist_ok=True)
+            created.append(str(target_dir.relative_to(workspace)))
+
+    template_learning_dir = template_root / "learning"
+    if template_learning_dir.is_dir():
+        for item in template_learning_dir.rglob("*"):
+            if not item.is_file():
+                continue
+            relative = item.relative_to(template_learning_dir)
+            target = learning_root / relative
+            if not target.exists():
+                target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_text(item.read_text(encoding="utf-8"), encoding="utf-8")
                 created.append(str(target.relative_to(workspace)))
 

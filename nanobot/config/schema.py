@@ -179,6 +179,21 @@ class XDiabetesRAGConfig(Base):
     headers: dict[str, str] = Field(default_factory=dict)
 
 
+class XDiabetesLearningConfig(Base):
+    """Continuous-learning configuration for X-Diabetes."""
+
+    enabled: bool = False
+    strict_privacy: bool = True
+    require_human_approval: bool = True
+    auto_activate: bool = False
+    enable_post_activation_monitoring: bool = True
+    auto_deactivate: bool = False
+    learning_dir: str = "learning"
+    min_observations_to_learn: int = 3
+    min_confidence_to_draft: float = 0.7
+    max_similarity_before_conflict: float = 0.82
+
+
 class XDiabetesConfig(Base):
     """Feature flag and runtime configuration for the X-Diabetes profile."""
 
@@ -193,6 +208,7 @@ class XDiabetesConfig(Base):
     dtmh: XDiabetesDTMHConfig = Field(default_factory=XDiabetesDTMHConfig)
     memory: XDiabetesMemoryConfig = Field(default_factory=XDiabetesMemoryConfig)
     rag: XDiabetesRAGConfig = Field(default_factory=XDiabetesRAGConfig)
+    learning: XDiabetesLearningConfig = Field(default_factory=XDiabetesLearningConfig)
 
 
 class ToolsConfig(Base):

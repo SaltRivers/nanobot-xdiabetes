@@ -36,9 +36,11 @@ The current implementation is designed as an **MVP system scaffold**: it already
 | Patient-level longitudinal memory | ✅ Implemented |
 | Optional external RAG API | ✅ Implemented |
 | Soft-fail retrieval fallback | ✅ Implemented |
+| Privacy-gated continuous learning to draft skills | ✅ Implemented |
+| Learned-skill evaluation / approval / activation flow | ✅ Implemented |
 | Future agent integration surface | ✅ Implemented |
 | Real DTMH model backend | ⏳ Reserved; default backend is `mock` |
-| Skill writer / self-evolving skill acquisition | ⏳ Not included in this MVP |
+| Post-activation monitoring / rollback for learned skills | ✅ Implemented |
 
 ## What Is Different from Upstream nanobot
 
@@ -103,6 +105,18 @@ The DTMH integration layer is already abstracted and supports these backends:
 
 This keeps the full consultation pipeline runnable while the real DTMH model is still being trained.
 
+### 6. Privacy-gated continuous learning
+
+X-Diabetes can optionally learn **workflow skills** from repeated usage patterns.
+
+Important constraints:
+
+- **disabled by default**
+- stores **sanitized workflow metadata**, not raw patient content
+- generates **draft skills first**
+- requires evaluation before approval/activation
+- supports monitoring and rollback after activation
+
 ## System Architecture
 
 ```text
@@ -134,15 +148,22 @@ Main tool surface:
 ```text
 repo-root/
 ├── nanobot/agent/tools/xdiabetes/     # X-Diabetes tool implementations
-├── nanobot/x_diabetes/                # schemas, adapters, services, workspace bootstrap
+├── nanobot/x_diabetes/                # schemas, adapters, services, learning, workspace bootstrap
+├── nanobot/x_diabetes/learning/       # observation, draft, eval, activation, monitoring pipeline
 ├── nanobot/templates/x_diabetes/      # workspace seed files, demo case, rules, knowledge
+├── nanobot/templates/x_diabetes/learning/
+│   ├── policies/                      # workspace-local privacy / eval policy
+│   └── evals/                         # synthetic skill-eval cases
 ├── nanobot/skills/x-diabetes/         # skill/playbook scaffold
 ├── docs/XDIABETES_QUICKSTART.md
 ├── docs/XDIABETES_ARCHITECTURE.md
 ├── docs/XDIABETES_PATIENT_MEMORY.md
 ├── docs/XDIABETES_RAG_API.md
 ├── docs/XDIABETES_DTMH_ADAPTER.md
-└── docs/XDIABETES_AGENT_INTEGRATION.md
+├── docs/XDIABETES_AGENT_INTEGRATION.md
+├── docs/XDIABETES_CONTINUOUS_LEARNING.md
+├── docs/XDIABETES_CONTINUOUS_LEARNING_PRIVACY.md
+└── docs/XDIABETES_CONTINUOUS_LEARNING_EVAL.md
 ```
 
 ## Installation
@@ -234,12 +255,27 @@ Important subdirectories:
 ~/.nanobot/xdiabetes-workspace/patient_memory/
 ~/.nanobot/xdiabetes-workspace/cases/
 ~/.nanobot/xdiabetes-workspace/knowledge/
+~/.nanobot/xdiabetes-workspace/learning/
+~/.nanobot/xdiabetes-workspace/skills/
 ```
 
 Generated reports are saved under:
 
 ```text
 ~/.nanobot/xdiabetes-workspace/reports/
+```
+
+Learned-skill artifacts are saved under:
+
+```text
+~/.nanobot/xdiabetes-workspace/learning/observations/
+~/.nanobot/xdiabetes-workspace/learning/instincts/
+~/.nanobot/xdiabetes-workspace/learning/drafts/
+~/.nanobot/xdiabetes-workspace/learning/evaluations/
+~/.nanobot/xdiabetes-workspace/learning/approved/
+~/.nanobot/xdiabetes-workspace/learning/rejected/
+~/.nanobot/xdiabetes-workspace/learning/rollback/
+~/.nanobot/xdiabetes-workspace/skills/<learned-skill>/
 ```
 
 ## Configuration Examples
@@ -289,6 +325,37 @@ Generated reports are saved under:
 }
 ```
 
+### Enable privacy-gated continuous learning
+
+```json
+{
+  "xDiabetes": {
+    "learning": {
+      "enabled": true,
+      "strictPrivacy": true,
+      "requireHumanApproval": true,
+      "autoActivate": false,
+      "autoDeactivate": true,
+      "minObservationsToLearn": 3,
+      "minConfidenceToDraft": 0.65,
+      "maxSimilarityBeforeConflict": 0.82
+    }
+  }
+}
+```
+
+Useful CLI commands:
+
+```bash
+nanobot xdiabetes agent --learning
+nanobot xdiabetes learning status
+nanobot xdiabetes learning review
+nanobot xdiabetes learning eval <draft_id>
+nanobot xdiabetes learning approve <draft_id>
+nanobot xdiabetes learning activate <draft_id>
+nanobot xdiabetes learning rollback <skill_name>
+```
+
 ## Documentation
 
 - [X-Diabetes Quickstart](docs/XDIABETES_QUICKSTART.md)
@@ -297,6 +364,9 @@ Generated reports are saved under:
 - [External RAG API Contract](docs/XDIABETES_RAG_API.md)
 - [DTMH Adapter Notes](docs/XDIABETES_DTMH_ADAPTER.md)
 - [Future Agent Integration Guide](docs/XDIABETES_AGENT_INTEGRATION.md)
+- [Continuous Learning Overview](docs/XDIABETES_CONTINUOUS_LEARNING.md)
+- [Continuous Learning Privacy Guardrails](docs/XDIABETES_CONTINUOUS_LEARNING_PRIVACY.md)
+- [Continuous Learning Evaluation and Activation](docs/XDIABETES_CONTINUOUS_LEARNING_EVAL.md)
 
 ## How to Extend the System
 

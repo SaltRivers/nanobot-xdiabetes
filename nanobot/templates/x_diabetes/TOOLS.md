@@ -16,3 +16,9 @@
 ## Important limitation
 
 If the DTMH backend is `mock`, its output is only a placeholder for workflow integration.
+
+## Learned skills
+
+- Learned skills are generated under `learning/drafts/` first
+- They must pass privacy and safety evaluation before activation into `skills/`
+- Review them with `nanobot xdiabetes learning review`

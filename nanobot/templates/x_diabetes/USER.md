@@ -10,3 +10,6 @@ Current operating mode: **{{MODE}}**
 ## Reminder
 
 This workspace may use a placeholder mock DTMH backend until the real model is connected.
+
+If continuous learning is enabled, only privacy-filtered workflow metadata should
+be stored, and learned skills should be reviewed before activation.

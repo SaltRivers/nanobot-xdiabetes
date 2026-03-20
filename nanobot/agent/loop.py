@@ -114,6 +114,18 @@ class AgentLoop:
             build_messages=self.context.build_messages,
             get_tool_definitions=self.tools.get_definitions,
         )
+        self._xdiabetes_learning = None
+        if self.x_diabetes_config and self.x_diabetes_config.enabled and self.x_diabetes_config.learning.enabled:
+            try:
+                from nanobot.x_diabetes.learning import XDiabetesLearningService
+
+                self._xdiabetes_learning = XDiabetesLearningService(
+                    workspace=self.workspace,
+                    config=self.x_diabetes_config.learning,
+                    mode=self.x_diabetes_config.mode,
+                )
+            except Exception as exc:  # pragma: no cover - defensive startup path
+                logger.warning("Failed to initialize X-Diabetes learning service: {}", exc)
         self._register_default_tools()
 
     def _register_default_tools(self) -> None:
@@ -359,6 +371,25 @@ class AgentLoop:
         self._background_tasks.append(task)
         task.add_done_callback(self._background_tasks.remove)
 
+    async def _record_xdiabetes_learning(
+        self,
+        *,
+        session_key: str,
+        current_message: str,
+        tools_used: list[str],
+        all_messages: list[dict[str, Any]],
+    ) -> None:
+        """Record one completed turn into the optional learning pipeline."""
+        if self._xdiabetes_learning is None:
+            return
+        await asyncio.to_thread(
+            self._xdiabetes_learning.record_turn,
+            session_key=session_key,
+            current_message=current_message,
+            tools_used=tools_used,
+            all_messages=all_messages,
+        )
+
     def stop(self) -> None:
         """Stop the agent loop."""
         self._running = False
@@ -445,7 +476,7 @@ class AgentLoop:
                 channel=msg.channel, chat_id=msg.chat_id, content=content, metadata=meta,
             ))
 
-        final_content, _, all_msgs = await self._run_agent_loop(
+        final_content, tools_used, all_msgs = await self._run_agent_loop(
             initial_messages, on_progress=on_progress or _bus_progress,
         )
 
@@ -455,6 +486,15 @@ class AgentLoop:
         self._save_turn(session, all_msgs, 1 + len(history))
         self.sessions.save(session)
         self._schedule_background(self.memory_consolidator.maybe_consolidate_by_tokens(session))
+        if self._xdiabetes_learning is not None:
+            self._schedule_background(
+                self._record_xdiabetes_learning(
+                    session_key=key,
+                    current_message=msg.content,
+                    tools_used=tools_used,
+                    all_messages=all_msgs,
+                )
+            )
 
         if (mt := self.tools.get("message")) and isinstance(mt, MessageTool) and mt._sent_in_turn:
             return None

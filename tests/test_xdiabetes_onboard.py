@@ -30,3 +30,5 @@ def test_xdiabetes_onboard_creates_isolated_workspace(tmp_path: Path, monkeypatc
     assert "X-Diabetes profile is ready" in result.stdout
     assert (expected_workspace / "cases" / "demo_patient.json").exists()
     assert (expected_workspace / "patient_memory").exists()
+    assert (expected_workspace / "learning" / "observations").exists()
+    assert (expected_workspace / "learning" / "policies" / "default_learning_policy.json").exists()
