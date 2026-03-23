@@ -1,6 +1,6 @@
 # X-Diabetes Continuous Learning
 
-X-Diabetes can learn **workflow skills** from repeated usage patterns, but the feature is **disabled by default**.
+X-Diabetes can learn workflow skills from repeated usage patterns, but the feature is disabled by default.
 
 ## What it learns
 
@@ -18,19 +18,19 @@ X-Diabetes can learn **workflow skills** from repeated usage patterns, but the f
 ## Main commands
 
 ```bash
-nanobot xdiabetes learning enable
-nanobot xdiabetes learning status
-nanobot xdiabetes learning review
-nanobot xdiabetes learning eval <draft_id>
-nanobot xdiabetes learning approve <draft_id>
-nanobot xdiabetes learning activate <draft_id>
+x-diabetes learning enable
+x-diabetes learning status
+x-diabetes learning review
+x-diabetes learning eval <draft_id>
+x-diabetes learning approve <draft_id>
+x-diabetes learning activate <draft_id>
 ```
 
 ## Runtime override
 
 ```bash
-nanobot xdiabetes agent --learning
-nanobot xdiabetes agent --no-learning
+x-diabetes agent --learning
+x-diabetes agent --no-learning
 ```
 
 ## Lifecycle

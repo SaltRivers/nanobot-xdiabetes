@@ -1,78 +1,24 @@
-# Contributing to nanobot
+# Contributing to X-Diabetes
 
-Thank you for being here.
+Thank you for contributing.
 
-nanobot is built with a simple belief: good tools should feel calm, clear, and humane.
-We care deeply about useful features, but we also believe in achieving more with less:
-solutions should be powerful without becoming heavy, and ambitious without becoming
-needlessly complicated.
+We want X-Diabetes to stay focused, readable, and dependable. Prefer small, well-scoped changes that improve the clinical workflow without adding unnecessary complexity.
 
-This guide is not only about how to open a PR. It is also about how we hope to build
-software together: with care, clarity, and respect for the next person reading the code.
+## Branching Guidance
 
-## Maintainers
-
-| Maintainer | Focus |
-|------------|-------|
-| [@re-bin](https://github.com/re-bin) | Project lead, `main` branch |
-| [@chengyongru](https://github.com/chengyongru) | `nightly` branch, experimental features |
-
-## Branching Strategy
-
-We use a two-branch model to balance stability and exploration:
-
-| Branch | Purpose | Stability |
-|--------|---------|-----------|
-| `main` | Stable releases | Production-ready |
-| `nightly` | Experimental features | May have bugs or breaking changes |
-
-### Which Branch Should I Target?
-
-**Target `nightly` if your PR includes:**
-
-- New features or functionality
-- Refactoring that may affect existing behavior
-- Changes to APIs or configuration
-
-**Target `main` if your PR includes:**
-
-- Bug fixes with no behavior changes
-- Documentation improvements
-- Minor tweaks that don't affect functionality
-
-**When in doubt, target `nightly`.** It is easier to move a stable idea from `nightly`
-to `main` than to undo a risky change after it lands in the stable branch.
-
-### How Does Nightly Get Merged to Main?
-
-We don't merge the entire `nightly` branch. Instead, stable features are **cherry-picked** from `nightly` into individual PRs targeting `main`:
-
-```
-nightly  ──┬── feature A (stable) ──► PR ──► main
-           ├── feature B (testing)
-           └── feature C (stable) ──► PR ──► main
-```
-
-This happens approximately **once a week**, but the timing depends on when features become stable enough.
-
-### Quick Summary
-
-| Your Change | Target Branch |
-|-------------|---------------|
+| Change Type | Preferred Target |
+|-------------|------------------|
 | New feature | `nightly` |
-| Bug fix | `main` |
+| Refactor | `nightly` |
+| Bug fix with no behavior change | `main` |
 | Documentation | `main` |
-| Refactoring | `nightly` |
 | Unsure | `nightly` |
 
 ## Development Setup
 
-Keep setup boring and reliable. The goal is to get you into the code quickly:
-
 ```bash
-# Clone the repository
-git clone https://github.com/HKUDS/nanobot.git
-cd nanobot
+# Clone this repository
+cd <repo-dir>
 
 # Install with dev dependencies
 pip install -e ".[dev]"
@@ -81,42 +27,39 @@ pip install -e ".[dev]"
 pytest
 
 # Lint code
-ruff check nanobot/
+ruff check xdiabetes/
 
 # Format code
-ruff format nanobot/
+ruff format xdiabetes/
 ```
 
 ## Code Style
 
-We care about more than passing lint. We want nanobot to stay small, calm, and readable.
+Please aim for code that is:
 
-When contributing, please aim for code that feels:
+- simple
+- clear
+- well-bounded
+- easy to test
+- easy to maintain
 
-- Simple: prefer the smallest change that solves the real problem
-- Clear: optimize for the next reader, not for cleverness
-- Decoupled: keep boundaries clean and avoid unnecessary new abstractions
-- Honest: do not hide complexity, but do not create extra complexity either
-- Durable: choose solutions that are easy to maintain, test, and extend
+Project defaults:
 
-In practice:
+- Python 3.11+
+- `ruff` for linting and formatting
+- max line length 100
+- `pytest` with `asyncio_mode = "auto"`
 
-- Line length: 100 characters (`ruff`)
-- Target: Python 3.11+
-- Linting: `ruff` with rules E, F, I, N, W (E501 ignored)
-- Async: uses `asyncio` throughout; pytest with `asyncio_mode = "auto"`
-- Prefer readable code over magical code
-- Prefer focused patches over broad rewrites
-- If a new abstraction is introduced, it should clearly reduce complexity rather than move it around
+## Practical Expectations
 
-## Questions?
+- Prefer the smallest safe patch.
+- Keep runtime behavior stable unless the change explicitly intends otherwise.
+- Avoid broad rewrites when a local fix is enough.
+- Add or update tests when behavior is touched.
+- Keep user-facing text aligned with the X-Diabetes product name.
 
-If you have questions, ideas, or half-formed insights, you are warmly welcome here.
+## Questions
 
-Please feel free to open an [issue](https://github.com/HKUDS/nanobot/issues), join the community, or simply reach out:
+If anything is unclear, open an issue or contact the maintainers listed in repository materials.
 
-- [Discord](https://discord.gg/MnCvHqpUGB)
-- [Feishu/WeChat](./COMMUNICATION.md)
-- Email: Xubin Ren (@Re-bin) — <xubinrencs@gmail.com>
-
-Thank you for spending your time and care on nanobot. We would love for more people to participate in this community, and we genuinely welcome contributions of all sizes.
+Thanks again for your time and care.

@@ -3,8 +3,8 @@ from unittest.mock import patch
 
 import httpx
 
-from nanobot.x_diabetes import prepare_xdiabetes_workspace
-from nanobot.x_diabetes.services import KnowledgeRouter, KnowledgeStore, RAGAPIClient
+from xdiabetes.x_diabetes import prepare_xdiabetes_workspace
+from xdiabetes.x_diabetes.services import KnowledgeRouter, KnowledgeStore, RAGAPIClient
 
 
 def test_knowledge_router_soft_fails_when_api_is_unavailable(tmp_path: Path):
@@ -20,7 +20,7 @@ def test_knowledge_router_soft_fails_when_api_is_unavailable(tmp_path: Path):
     )
 
     with patch(
-        "nanobot.x_diabetes.services.rag_api_client.httpx.post",
+        "xdiabetes.x_diabetes.services.rag_api_client.httpx.post",
         side_effect=httpx.ConnectError("connection refused"),
     ):
         result = router.search(query="diabetic kidney disease follow-up", patient_id="demo_patient")
@@ -44,7 +44,7 @@ def test_knowledge_router_can_fallback_to_local_results(tmp_path: Path):
     )
 
     with patch(
-        "nanobot.x_diabetes.services.rag_api_client.httpx.post",
+        "xdiabetes.x_diabetes.services.rag_api_client.httpx.post",
         side_effect=httpx.ConnectError("connection refused"),
     ):
         result = router.search(query="kidney complication diabetes", patient_id="demo_patient")

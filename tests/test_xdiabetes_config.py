@@ -1,4 +1,4 @@
-from nanobot.config.schema import Config
+from xdiabetes.config.schema import Config
 
 
 def test_xdiabetes_config_accepts_camel_case_aliases():

@@ -14,8 +14,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from nanobot.providers.litellm_provider import LiteLLMProvider
-from nanobot.providers.registry import find_by_name
+from xdiabetes.providers.litellm_provider import LiteLLMProvider
+from xdiabetes.providers.registry import find_by_name
 
 
 def _fake_response(content: str = "ok") -> SimpleNamespace:
@@ -50,7 +50,7 @@ async def test_openrouter_prefixes_model_correctly() -> None:
     """OpenRouter should prefix model as openrouter/vendor/model for LiteLLM routing."""
     mock_acompletion = AsyncMock(return_value=_fake_response())
 
-    with patch("nanobot.providers.litellm_provider.acompletion", mock_acompletion):
+    with patch("xdiabetes.providers.litellm_provider.acompletion", mock_acompletion):
         provider = LiteLLMProvider(
             api_key="sk-or-test-key",
             api_base="https://openrouter.ai/api/v1",
@@ -74,7 +74,7 @@ async def test_non_gateway_provider_no_extra_kwargs() -> None:
     """Standard (non-gateway) providers must NOT inject any litellm_kwargs."""
     mock_acompletion = AsyncMock(return_value=_fake_response())
 
-    with patch("nanobot.providers.litellm_provider.acompletion", mock_acompletion):
+    with patch("xdiabetes.providers.litellm_provider.acompletion", mock_acompletion):
         provider = LiteLLMProvider(
             api_key="sk-ant-test-key",
             default_model="claude-sonnet-4-5",
@@ -95,7 +95,7 @@ async def test_gateway_without_litellm_kwargs_injects_nothing_extra() -> None:
     """Gateways without litellm_kwargs (e.g. AiHubMix) must not add extra keys."""
     mock_acompletion = AsyncMock(return_value=_fake_response())
 
-    with patch("nanobot.providers.litellm_provider.acompletion", mock_acompletion):
+    with patch("xdiabetes.providers.litellm_provider.acompletion", mock_acompletion):
         provider = LiteLLMProvider(
             api_key="sk-aihub-test-key",
             api_base="https://aihubmix.com/v1",
@@ -116,7 +116,7 @@ async def test_openrouter_autodetect_by_key_prefix() -> None:
     """OpenRouter should be auto-detected by sk-or- key prefix even without explicit provider_name."""
     mock_acompletion = AsyncMock(return_value=_fake_response())
 
-    with patch("nanobot.providers.litellm_provider.acompletion", mock_acompletion):
+    with patch("xdiabetes.providers.litellm_provider.acompletion", mock_acompletion):
         provider = LiteLLMProvider(
             api_key="sk-or-auto-detect-key",
             default_model="anthropic/claude-sonnet-4-5",
@@ -142,7 +142,7 @@ async def test_openrouter_native_model_id_gets_double_prefixed() -> None:
     """
     mock_acompletion = AsyncMock(return_value=_fake_response())
 
-    with patch("nanobot.providers.litellm_provider.acompletion", mock_acompletion):
+    with patch("xdiabetes.providers.litellm_provider.acompletion", mock_acompletion):
         provider = LiteLLMProvider(
             api_key="sk-or-test-key",
             api_base="https://openrouter.ai/api/v1",

@@ -2,9 +2,9 @@ import asyncio
 import json
 from pathlib import Path
 
-from nanobot.agent.tools.registry import ToolRegistry
-from nanobot.config.schema import XDiabetesConfig
-from nanobot.x_diabetes import prepare_xdiabetes_workspace, register_x_diabetes_tools
+from xdiabetes.agent.tools.registry import ToolRegistry
+from xdiabetes.config.schema import XDiabetesConfig
+from xdiabetes.x_diabetes import prepare_xdiabetes_workspace, register_x_diabetes_tools
 
 
 def test_xdiabetes_patient_context_exposes_longitudinal_memory(tmp_path: Path):

@@ -2,8 +2,8 @@
 
 The adapter contract lives in:
 
-- `nanobot/x_diabetes/schemas.py` → `DTMHRequest`, `DTMHResult`
-- `nanobot/x_diabetes/adapters/base.py` → `DTMHAdapter`
+- `<package_root>/x_diabetes/schemas.py` → `DTMHRequest`, `DTMHResult`
+- `<package_root>/x_diabetes/adapters/base.py` → `DTMHAdapter`
 
 ## Supported backend values
 

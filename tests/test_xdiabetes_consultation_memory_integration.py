@@ -5,9 +5,9 @@ from unittest.mock import patch
 
 import httpx
 
-from nanobot.agent.tools.registry import ToolRegistry
-from nanobot.config.schema import XDiabetesConfig
-from nanobot.x_diabetes import prepare_xdiabetes_workspace, register_x_diabetes_tools
+from xdiabetes.agent.tools.registry import ToolRegistry
+from xdiabetes.config.schema import XDiabetesConfig
+from xdiabetes.x_diabetes import prepare_xdiabetes_workspace, register_x_diabetes_tools
 
 
 def test_consultation_persists_patient_memory_even_when_rag_api_fails(tmp_path: Path):
@@ -21,7 +21,7 @@ def test_consultation_persists_patient_memory_even_when_rag_api_fails(tmp_path: 
     register_x_diabetes_tools(registry, workspace=tmp_path, config=config)
 
     with patch(
-        "nanobot.x_diabetes.services.rag_api_client.httpx.post",
+        "xdiabetes.x_diabetes.services.rag_api_client.httpx.post",
         side_effect=httpx.ConnectError("connection refused"),
     ):
         result = asyncio.run(

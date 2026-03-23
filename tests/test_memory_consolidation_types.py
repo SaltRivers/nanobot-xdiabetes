@@ -1,6 +1,6 @@
 """Test MemoryStore.consolidate() handles non-string tool call arguments.
 
-Regression test for https://github.com/HKUDS/nanobot/issues/1042
+Regression test for https://github.com/HKUDS/xdiabetes/issues/1042
 When memory consolidation receives dict values instead of strings from the LLM
 tool call response, it should serialize them to JSON instead of raising TypeError.
 """
@@ -11,8 +11,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from nanobot.agent.memory import MemoryStore
-from nanobot.providers.base import LLMProvider, LLMResponse, ToolCallRequest
+from xdiabetes.agent.memory import MemoryStore
+from xdiabetes.providers.base import LLMProvider, LLMResponse, ToolCallRequest
 
 
 def _make_messages(message_count: int = 30):
@@ -344,7 +344,7 @@ class TestMemoryConsolidationTypeHandling:
         async def _fake_sleep(delay: int) -> None:
             delays.append(delay)
 
-        monkeypatch.setattr("nanobot.providers.base.asyncio.sleep", _fake_sleep)
+        monkeypatch.setattr("xdiabetes.providers.base.asyncio.sleep", _fake_sleep)
 
         result = await store.consolidate(messages, provider, "test-model")
 

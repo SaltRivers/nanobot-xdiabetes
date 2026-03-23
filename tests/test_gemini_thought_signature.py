@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 
-from nanobot.providers.base import ToolCallRequest
-from nanobot.providers.litellm_provider import LiteLLMProvider
+from xdiabetes.providers.base import ToolCallRequest
+from xdiabetes.providers.litellm_provider import LiteLLMProvider
 
 
 def test_litellm_parse_response_preserves_tool_call_provider_fields() -> None:

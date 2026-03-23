@@ -1,12 +1,12 @@
 [project]
-name = "nanobot-ai"
+name = "x-diabetes-ai"
 version = "0.1.4.post5"
-description = "A lightweight personal AI assistant framework"
+description = "A diabetes-focused clinical workflow agent"
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.11"
 license = {text = "MIT"}
 authors = [
-    {name = "nanobot contributors"}
+    {name = "X-Diabetes contributors"}
 ]
 keywords = ["ai", "agent", "chatbot"]
 classifiers = [
@@ -71,7 +71,7 @@ dev = [
 ]
 
 [project.scripts]
-nanobot = "nanobot.cli.commands:app"
+x-diabetes = "xdiabetes.cli.x_diabetes_entry:app"
 
 [build-system]
 requires = ["hatchling"]
@@ -82,24 +82,24 @@ allow-direct-references = true
 
 [tool.hatch.build]
 include = [
-    "nanobot/**/*.py",
-    "nanobot/templates/**/*",
-    "nanobot/skills/**/*.md",
-    "nanobot/skills/**/*.sh",
+    "xdiabetes/**/*.py",
+    "xdiabetes/templates/**/*",
+    "xdiabetes/skills/**/*.md",
+    "xdiabetes/skills/**/*.sh",
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["nanobot"]
+packages = ["xdiabetes"]
 
 [tool.hatch.build.targets.wheel.sources]
-"nanobot" = "nanobot"
+"xdiabetes" = "xdiabetes"
 
 [tool.hatch.build.targets.wheel.force-include]
-"bridge" = "nanobot/bridge"
+"bridge" = "xdiabetes/bridge"
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "nanobot/",
+    "xdiabetes/",
     "bridge/",
     "README.md",
     "LICENSE",

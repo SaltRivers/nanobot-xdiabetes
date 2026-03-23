@@ -1,10 +1,10 @@
 from pathlib import Path
 
-from nanobot.config.schema import XDiabetesLearningConfig
-from nanobot.x_diabetes.learning import XDiabetesLearningService
-from nanobot.x_diabetes.learning.policy import build_default_policy
-from nanobot.x_diabetes.learning.privacy import PrivacyFilter, discover_case_ids
-from nanobot.x_diabetes.workspace import prepare_xdiabetes_workspace
+from xdiabetes.config.schema import XDiabetesLearningConfig
+from xdiabetes.x_diabetes.learning import XDiabetesLearningService
+from xdiabetes.x_diabetes.learning.policy import build_default_policy
+from xdiabetes.x_diabetes.learning.privacy import PrivacyFilter, discover_case_ids
+from xdiabetes.x_diabetes.workspace import prepare_xdiabetes_workspace
 
 
 def test_privacy_filter_redacts_secrets_and_case_ids(tmp_path: Path):

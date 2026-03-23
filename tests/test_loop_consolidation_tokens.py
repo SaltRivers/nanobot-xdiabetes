@@ -2,10 +2,10 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from nanobot.agent.loop import AgentLoop
-import nanobot.agent.memory as memory_module
-from nanobot.bus.queue import MessageBus
-from nanobot.providers.base import LLMResponse
+from xdiabetes.agent.loop import AgentLoop
+import xdiabetes.agent.memory as memory_module
+from xdiabetes.bus.queue import MessageBus
+from xdiabetes.providers.base import LLMResponse
 
 
 def _make_loop(tmp_path, *, estimated_tokens: int, context_window_tokens: int) -> AgentLoop:

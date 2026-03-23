@@ -2,16 +2,14 @@
 
 ## Goal
 
-X-Diabetes keeps a patient-level memory layer separate from generic chat history so the
-runtime can accumulate workflow history, risk snapshots, and reports across repeated
-consultations.
+X-Diabetes keeps a patient-level memory layer separate from generic chat history so the runtime can accumulate workflow history, risk snapshots, and reports across repeated consultations.
 
 ## Storage layout
 
 Patient memory lives under the X-Diabetes workspace:
 
 ```text
-~/.nanobot/xdiabetes-workspace/patient_memory/<patient_id>/
+~/.x-diabetes/x-diabetes-workspace/patient_memory/<patient_id>/
 ```
 
 Each patient directory contains:
@@ -62,14 +60,3 @@ After consultation/report generation, the runtime:
   }
 }
 ```
-
-## Future DTMH integration
-
-The current MVP records longitudinal workflow history and leaves room for future DTMH state
-tracking. When the real DTMH is connected, the recommended next step is to persist:
-
-- `state_id`
-- DTMH model version
-- forecast history
-- intervention simulation history
-- state transition timestamps

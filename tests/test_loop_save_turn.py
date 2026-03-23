@@ -1,6 +1,6 @@
-from nanobot.agent.context import ContextBuilder
-from nanobot.agent.loop import AgentLoop
-from nanobot.session.manager import Session
+from xdiabetes.agent.context import ContextBuilder
+from xdiabetes.agent.loop import AgentLoop
+from xdiabetes.session.manager import Session
 
 
 def _mk_loop() -> AgentLoop:
