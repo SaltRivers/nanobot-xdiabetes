@@ -1,0 +1,35 @@
+{
+  "blocked_regexes": [
+    "(?i)\\b(patient[_ -]?id|mrn|medical record|身份证|病历号)\\b",
+    "(?i)\\b(patient[_ -]?name|full[_ -]?name|姓名)\\b",
+    "(?i)\\b(api[_-]?key|token|secret|password|authorization|bearer)\\b",
+    "(?i)\\b(email|phone|address|dob|date of birth)\\b"
+  ],
+  "blocked_field_names": [
+    "patient_id",
+    "patient_name",
+    "full_name",
+    "phone",
+    "email",
+    "address",
+    "mrn",
+    "medical_record_number",
+    "api_key",
+    "token",
+    "secret",
+    "password"
+  ],
+  "required_skill_sections": [
+    "# ",
+    "## Overview",
+    "## When to use",
+    "## Learned workflow",
+    "## Safety boundaries"
+  ],
+  "safety_keywords": [
+    "patient-specific",
+    "not medical advice",
+    "clinician",
+    "privacy"
+  ]
+}

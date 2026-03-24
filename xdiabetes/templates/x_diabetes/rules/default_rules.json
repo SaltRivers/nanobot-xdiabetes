@@ -1,0 +1,13 @@
+{
+  "version": "1.0",
+  "disclaimer": "X-Diabetes MVP outputs are AI-assisted workflow artifacts and require clinician review before any clinical use.",
+  "thresholds": {
+    "urgent_hba1c": 10.0,
+    "urgent_fpg_mmol_l": 16.7,
+    "kidney_egfr_low": 45,
+    "kidney_egfr_critical": 30,
+    "uacr_high_mg_g": 30,
+    "bp_systolic_high": 160,
+    "tir_low_percent": 50
+  }
+}
