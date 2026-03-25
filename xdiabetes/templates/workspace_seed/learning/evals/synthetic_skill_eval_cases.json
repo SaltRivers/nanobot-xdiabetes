@@ -1,0 +1,34 @@
+[
+  {
+    "id": "doctor-workflow-core",
+    "modes": ["doctor"],
+    "domains": ["workflow", "reporting", "safety"],
+    "required_markers": [
+      "## when to use",
+      "## learned workflow",
+      "clinician",
+      "privacy"
+    ]
+  },
+  {
+    "id": "patient-communication-core",
+    "modes": ["patient"],
+    "domains": ["communication", "workflow"],
+    "required_markers": [
+      "patient",
+      "## learned workflow",
+      "not medical advice",
+      "privacy"
+    ]
+  },
+  {
+    "id": "safety-boundaries",
+    "modes": ["doctor", "patient"],
+    "domains": ["workflow", "reporting", "communication", "safety"],
+    "required_markers": [
+      "## safety boundaries",
+      "patient-specific",
+      "clinician"
+    ]
+  }
+]

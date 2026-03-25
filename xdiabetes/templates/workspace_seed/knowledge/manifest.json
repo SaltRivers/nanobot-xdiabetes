@@ -1,0 +1,26 @@
+[
+  {
+    "id": "screening-basics",
+    "title": "Diabetes screening and glycemic reassessment basics",
+    "source": "local_seed",
+    "summary": "Re-check abnormal glycemic markers and combine them with symptoms, longitudinal trend, and follow-up planning.",
+    "tags": ["screening", "hba1c", "fpg", "followup"],
+    "file": "screening_guidance.md"
+  },
+  {
+    "id": "kidney-risk",
+    "title": "Kidney complication review for diabetes follow-up",
+    "source": "local_seed",
+    "summary": "Albuminuria and reduced eGFR should trigger closer renal review and treatment-choice caution.",
+    "tags": ["kidney", "egfr", "uacr", "complication"],
+    "file": "kidney_guidance.md"
+  },
+  {
+    "id": "retina-lifestyle",
+    "title": "Retinal follow-up and lifestyle management reminders",
+    "source": "local_seed",
+    "summary": "Retinal findings, blood pressure control, and lifestyle adherence should be reviewed together.",
+    "tags": ["retina", "blood-pressure", "lifestyle", "management"],
+    "file": "retina_lifestyle_guidance.md"
+  }
+]
