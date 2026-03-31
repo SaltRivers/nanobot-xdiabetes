@@ -206,7 +206,7 @@ Recommended usage:
 - internal technical validation
 - workflow simulation
 - future integration testing with validated medical systems
-
+- Aromanka public modify test
 ## License
 
 MIT, unless explicitly noted otherwise.
