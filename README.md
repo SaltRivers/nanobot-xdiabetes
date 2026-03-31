@@ -1,48 +1,62 @@
 # X-Diabetes
 
-X-Diabetes is a diabetes-focused clinical workflow agent for structured case review, patient-facing explanation, longitudinal patient memory, optional external knowledge retrieval, and future DTMH integration.
+X-Diabetes is a diabetes-focused agent that calls a remote DTMH model for structured diabetes inference, with support for patient longitudinal memory, optional external knowledge retrieval, and privacy-gated continuous learning.
 
 > [!WARNING]
 > **Research prototype only.** X-Diabetes is not a medical device and must not be used as a substitute for licensed clinical judgment, diagnosis, or treatment.
 
 ## Overview
 
-This repository provides a runnable X-Diabetes workflow layer with:
+This repository provides a runnable X-Diabetes agent with:
 
-- doctor-facing diabetes case analysis
-- patient-facing explanation mode
+- DTMH HTTP inference as the primary execution path
 - patient-level longitudinal memory across repeated consultations
 - optional external RAG retrieval over HTTP with soft-fail behavior
 - privacy-gated continuous learning for workflow skills
-- a reserved DTMH adapter layer for future model integration
+- doctor-facing and patient-facing output modes
 
 ## Current Status
 
 | Capability | Status |
 |---|---|
 | X-Diabetes CLI | ✅ Implemented |
+| DTMH HTTP backend | ✅ Implemented (default) |
 | Doctor mode | ✅ Implemented |
 | Patient mode | ✅ Implemented |
-| Structured report generation | ✅ Implemented |
 | Patient-level longitudinal memory | ✅ Implemented |
 | Optional external RAG API | ✅ Implemented |
 | Soft-fail retrieval fallback | ✅ Implemented |
 | Privacy-gated continuous learning | ✅ Implemented |
 | Draft / approval / activation flow | ✅ Implemented |
-| Real DTMH backend | ⏳ Reserved; default backend is `mock` |
 | Post-activation monitoring / rollback | ✅ Implemented |
 
 ## Core Capabilities
 
-### 1. Doctor-facing consultation workflow
+### 1. DTMH HTTP inference
 
-The doctor profile can analyze a patient case, retrieve supporting evidence, run the DTMH adapter, perform safety checks, and generate a Markdown report.
+The agent calls a remote DTMH model via HTTP API (default endpoint: `http://localhost:8000/predict_csv`). The model runs on a remote server — no local deep-learning libraries are needed.
 
-### 2. Patient-facing explanation workflow
+**Request format:**
 
-The patient profile reuses the same case and memory foundation but responds in more patient-friendly language.
+```json
+{
+  "cohort_dir": "Dataset/private_fundus",
+  "patient_id": 4,
+  "checkpoint_path": "checkpoints/deepdr_ehr_text/best.pt",
+  "config_path": "src/configs/deepdr_ehr_text.yaml",
+  "output_format": "probabilities"
+}
+```
 
-### 3. Patient-level longitudinal memory
+**Supported backends:**
+
+- `http` (default)
+- `mock`
+- `python`
+- `mcp`
+- `disabled`
+
+### 2. Patient-level longitudinal memory
 
 Default storage path:
 
@@ -60,23 +74,11 @@ Typical artifacts include:
 - `encounters/*.json`
 - `risk_assessments/*.json`
 
-### 4. Optional external RAG API
+### 3. Optional external RAG API
 
-You can connect a local or domain-specific retrieval service over HTTP. When the API is unavailable and `ignoreFailure=true`, the workflow continues instead of failing the whole consultation.
+You can connect a local or domain-specific retrieval service over HTTP. When the API is unavailable and `ignoreFailure=true`, the workflow continues instead of failing.
 
-### 5. DTMH integration slot
-
-Supported backend values:
-
-- `mock`
-- `python`
-- `http`
-- `mcp`
-- `disabled`
-
-**Current default:** `mock`
-
-### 6. Privacy-gated continuous learning
+### 4. Privacy-gated continuous learning
 
 X-Diabetes can optionally learn workflow skills from repeated usage patterns.
 
@@ -109,7 +111,6 @@ This bootstraps:
 
 - config entry `xDiabetes`
 - isolated workspace `~/.x-diabetes/x-diabetes-workspace`
-- demo case `demo_patient`
 - seeded knowledge, rules, and templates
 - patient-level memory directory `patient_memory/`
 
@@ -117,22 +118,41 @@ This bootstraps:
 
 Edit `~/.x-diabetes/config.json` and set a valid provider key.
 
-### Run the doctor-facing workflow
+### Configure DTMH HTTP endpoint (optional)
+
+The default is `http://localhost:8000/predict_csv`. To override:
+
+```json
+{
+  "xDiabetes": {
+    "dtmh": {
+      "backend": "http",
+      "httpBaseUrl": "http://localhost:8000",
+      "httpEndpoint": "/predict_csv",
+      "checkpointPath": "checkpoints/deepdr_ehr_text/best.pt",
+      "configPath": "src/configs/deepdr_ehr_text.yaml",
+      "outputFormat": "probabilities"
+    }
+  }
+}
+```
+
+### Run the agent
 
 ```bash
 x-diabetes agent
 ```
 
-### Run a one-shot doctor consultation
+### Run a one-shot query
 
 ```bash
-x-diabetes agent -m "Analyze demo_patient and generate a doctor report"
+x-diabetes agent -m "Check whether patient 4 in Dataset/private_fundus has diabetes"
 ```
 
 ### Run patient-facing mode
 
 ```bash
-x-diabetes agent --mode patient -m "Explain demo_patient in patient-friendly language"
+x-diabetes agent --mode patient -m "Explain the diabetes risk for patient 4"
 ```
 
 ## Default Output Locations
@@ -180,21 +200,21 @@ The most relevant code lives under the package root:
 <package_root>/agent/tools/diabetes/     # X-Diabetes tool implementations
 <package_root>/clinical/                # schemas, adapters, services, learning, workspace bootstrap
 <package_root>/clinical/learning/       # observation, draft, eval, activation, monitoring pipeline
-<package_root>/templates/workspace_seed/      # workspace seed files, demo case, rules, knowledge
+<package_root>/templates/workspace_seed/      # workspace seed files, rules, knowledge
 <package_root>/skills/x-diabetes/         # workflow playbook scaffold
 ```
 
 ## Documentation
 
-- [X-Diabetes Quickstart](docs/X_DIABETES_QUICKSTART.md)
-- [X-Diabetes Architecture](docs/X_DIABETES_ARCHITECTURE.md)
-- [Patient Longitudinal Memory](docs/X_DIABETES_PATIENT_MEMORY.md)
-- [External RAG API Contract](docs/X_DIABETES_RAG_API.md)
-- [DTMH Adapter Notes](docs/X_DIABETES_DTMH_ADAPTER.md)
-- [Future Agent Integration Guide](docs/X_DIABETES_AGENT_INTEGRATION.md)
-- [Continuous Learning Overview](docs/X_DIABETES_CONTINUOUS_LEARNING.md)
-- [Continuous Learning Privacy Guardrails](docs/X_DIABETES_CONTINUOUS_LEARNING_PRIVACY.md)
-- [Continuous Learning Evaluation and Activation](docs/X_DIABETES_CONTINUOUS_LEARNING_EVAL.md)
+- [X-Diabetes Quickstart](docs/XDIABETES_QUICKSTART.md)
+- [X-Diabetes Architecture](docs/XDIABETES_ARCHITECTURE.md)
+- [Patient Longitudinal Memory](docs/XDIABETES_PATIENT_MEMORY.md)
+- [External RAG API Contract](docs/XDIABETES_RAG_API.md)
+- [DTMH Adapter Notes](docs/XDIABETES_DTMH_ADAPTER.md)
+- [Future Agent Integration Guide](docs/XDIABETES_AGENT_INTEGRATION.md)
+- [Continuous Learning Overview](docs/XDIABETES_CONTINUOUS_LEARNING.md)
+- [Continuous Learning Privacy Guardrails](docs/XDIABETES_CONTINUOUS_LEARNING_PRIVACY.md)
+- [Continuous Learning Evaluation and Activation](docs/XDIABETES_CONTINUOUS_LEARNING_EVAL.md)
 
 ## Clinical Safety Note
 
@@ -206,7 +226,7 @@ Recommended usage:
 - internal technical validation
 - workflow simulation
 - future integration testing with validated medical systems
-- Aromanka public modify test
+
 ## License
 
 MIT, unless explicitly noted otherwise.

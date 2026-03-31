@@ -1,21 +1,22 @@
 # X-Diabetes Tool Notes
 
-## Primary workflow tool
+## Primary tool
 
-- `xdiabetes_consultation` is the preferred first tool for end-to-end case analysis.
+- `xdiabetes_dtmh` is the preferred first tool for diabetes inference requests.
+  - For direct prediction: provide `cohort_dir` and `patient_id` to call the remote DTMH HTTP service.
+  - Optionally override `checkpoint_path`, `config_path`, or `output_format` per call.
 
-## Lower-level tools
+## Supporting tools
 
-- `xdiabetes_patient_context`: inspect the normalized case
+- `xdiabetes_patient_context`: inspect a normalized local patient case (when available)
 - `xdiabetes_patient_memory`: inspect patient-level longitudinal workflow memory
-- `xdiabetes_dtmh`: inspect the current DTMH backend output
 - `xdiabetes_guideline_search`: retrieve evidence from the configured local/API RAG backend
-- `xdiabetes_safety_check`: apply deterministic safety rules
-- `xdiabetes_generate_report`: build and save a Markdown report
+- `xdiabetes_safety_check`: apply deterministic safety rules to DTMH results
 
-## Important limitation
+## Optional workflow tools
 
-If the DTMH backend is `mock`, its output is only a placeholder for workflow integration.
+- `xdiabetes_generate_report`: build and save a Markdown report (use only when explicitly requested)
+- `xdiabetes_consultation`: full end-to-end orchestration (use only when the user wants a complete workflow artifact)
 
 ## Learned skills
 

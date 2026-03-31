@@ -52,6 +52,8 @@ def prepare_clinical_workspace(workspace: Path, mode: str, silent: bool = False)
         source_dir = template_root / directory
         target_dir = workspace / directory
         for item in source_dir.iterdir():
+            if item.name.startswith("."):
+                continue
             target = target_dir / item.name
             if not target.exists():
                 target.write_text(item.read_text(encoding="utf-8"), encoding="utf-8")

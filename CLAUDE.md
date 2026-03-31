@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-X-Diabetes is a diabetes-focused clinical workflow agent for structured case review, patient-facing explanation, longitudinal patient memory, optional external knowledge retrieval, and future DTMH integration.
+X-Diabetes is a diabetes-focused agent that calls a remote DTMH model for structured diabetes inference, with support for patient longitudinal memory, optional external knowledge retrieval, and privacy-gated continuous learning.
 
 **Important:** This is a research prototype only. Not a medical device and must not be used as a substitute for licensed clinical judgment, diagnosis, or treatment.
 
@@ -36,7 +36,7 @@ ruff check --fix .    # auto-fix issues
 ```bash
 x-diabetes onboard                    # initialize profile and workspace
 x-diabetes agent                     # run interactive agent
-x-diabetes agent -m "message"        # one-shot consultation
+x-diabetes agent -m "message"        # one-shot query
 x-diabetes agent --mode patient      # patient-facing mode
 x-diabetes agent --learning          # enable continuous learning
 x-diabetes learning status          # check learning status
@@ -45,6 +45,11 @@ x-diabetes learning eval <draft_id> # evaluate a draft
 x-diabetes learning approve <draft_id>
 x-diabetes learning activate <draft_id>
 x-diabetes learning rollback <skill_name>
+```
+
+### Example Query
+```bash
+x-diabetes agent -m "Check whether patient 4 in Dataset/private_fundus has diabetes"
 ```
 
 ### Bridge (WhatsApp)
@@ -58,7 +63,8 @@ npm start      # runs the bridge
 
 ### Core Runtime Components
 - `xdiabetes.agent.loop.AgentLoop` - Main orchestration runtime
-- `xdiabetes.agent.tools` - Tool registry and diabetes-specific tools
+- `xdiabetes.agent.tools.diabetes.dtmh_adapter` - Primary DTMH inference tool
+- `xdiabetes.clinical.adapters.http` - HTTP adapter for remote DTMH service
 - `xdiabetes.clinical` - Clinical workflow layer (schemas, adapters, services)
 - `xdiabetes.channels` - 20+ messaging channel integrations (Telegram, Slack, Discord, WhatsApp, DingTalk, Feishu, QQ, WeCom, Matrix, Email, etc.)
 
@@ -66,19 +72,32 @@ npm start      # runs the bridge
 ```
 User/CLI
   -> AgentLoop
-  -> xdiabetes_consultation tool
-  -> PatientStore + PatientMemoryBuilder
-  -> KnowledgeRouter (local/API/hybrid)
-  -> DTMH adapter (default: mock)
-  -> SafetyEngine + ReportBuilder
-  -> PatientMemoryStore persistence
-  -> Markdown report
+  -> xdiabetes_dtmh tool (primary)
+  -> HTTPDTMHAdapter
+  -> POST http://localhost:8000/predict_csv
+  -> DTMHResult normalization
+  -> Optional: PatientMemoryStore, SafetyEngine, ReportBuilder
 ```
 
-### DTMH Adapters
-Supported backend values: `mock`, `python`, `http`, `mcp`, `disabled`
-- Default is `mock` (reserved slot for real model integration)
-- Configured in `~/.x-diabetes/config.json` under `xDiabetes.dtmhBackend`
+### DTMH HTTP Integration
+The agent calls a remote DTMH model via HTTP API. The model runs on a remote server — no local deep-learning libraries are needed.
+
+**Default endpoint:** `http://localhost:8000/predict_csv`
+
+**Request format (dtcan_predict_csv):**
+```json
+{
+  "cohort_dir": "Dataset/private_fundus",
+  "patient_id": 4,
+  "checkpoint_path": "checkpoints/deepdr_ehr_text/best.pt",
+  "config_path": "src/configs/deepdr_ehr_text.yaml",
+  "output_format": "probabilities"
+}
+```
+
+**Supported backends:** `http` (default), `mock`, `python`, `mcp`, `disabled`
+
+Configured in `~/.x-diabetes/config.json` under `xDiabetes.dtmh`
 
 ### Data Storage
 - Configuration: `~/.x-diabetes/config.json`
@@ -98,11 +117,15 @@ Supported backend values: `mock`, `python`, `http`, `mcp`, `disabled`
 
 | Path | Purpose |
 |------|---------|
+| `xdiabetes/agent/tools/diabetes/dtmh_adapter.py` | Primary DTMH inference tool |
+| `xdiabetes/clinical/adapters/http.py` | HTTP adapter for remote DTMH service |
+| `xdiabetes/clinical/registry.py` | Tool registration (DTMH first) |
 | `xdiabetes/agent/loop.py` | Agent orchestration runtime |
-| `xdiabetes/agent/tools/diabetes/` | Diabetes-specific tools |
 | `xdiabetes/clinical/` | Schemas, adapters, services, learning |
+| `xdiabetes/config/schema.py` | Config definitions (DTMH defaults) |
 | `xdiabetes/cli/app.py` | CLI entry point (Typer) |
-| `xdiabetes/templates/workspace_seed/` | Demo case, knowledge base, rules |
+| `xdiabetes/skills/x-diabetes/SKILL.md` | Workflow playbook |
+| `xdiabetes/templates/workspace_seed/` | Workspace seed files, rules, knowledge |
 | `docs/` | Architecture and integration guides |
 
 ## Technology Stack

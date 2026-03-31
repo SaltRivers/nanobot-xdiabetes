@@ -15,7 +15,7 @@ def test_prepare_clinical_workspace_creates_seed_assets(tmp_path: Path):
 
     assert (tmp_path / "AGENTS.md").exists()
     assert (tmp_path / "USER.md").exists()
-    assert (tmp_path / "cases" / "demo_patient.json").exists()
+    assert (tmp_path / "cases").exists()
     assert (tmp_path / "knowledge" / "manifest.json").exists()
     assert (tmp_path / "rules" / "default_rules.json").exists()
     assert (tmp_path / "patient_memory").exists()
