@@ -16,14 +16,16 @@ from xdiabetes.config.schema import XDiabetesDTMHConfig
 class HTTPDTMHAdapter(DTMHAdapter):
     """Call a remote DTMH service over HTTP.
 
-    Two request styles are supported:
+    Three request styles are supported:
 
     - ``xdiabetes``: POST the native ``DTMHRequest`` to a service that already
-      returns ``DTMHResult``-compatible JSON (legacy/default behavior).
-    - ``dtcan_predict``: POST to the DT-CAN-style ``/predict`` API living under
-      ``DTMH/examples/api_service.py``. This adapter will translate the
-      X-Diabetes ``PatientCase`` into the raw EHR/text payload expected by that
-      service and normalize the response back into ``DTMHResult``.
+      returns ``DTMHResult``-compatible JSON (legacy behavior).
+    - ``dtcan_predict``: POST to the DT-CAN-style ``/predict`` API. This adapter
+      translates the X-Diabetes ``PatientCase`` into the raw EHR/text payload
+      expected by that service and normalizes the response into ``DTMHResult``.
+    - ``dtcan_predict_csv``: POST ``cohort_dir`` + ``patient_id`` directly to
+      the ``/predict_csv`` endpoint. The DTMH model runs on a remote server;
+      no local deep-learning libraries are needed.
     """
 
     def __init__(self, config: XDiabetesDTMHConfig):
@@ -72,9 +74,11 @@ class HTTPDTMHAdapter(DTMHAdapter):
             return request.model_dump(mode="json")
         if self._request_format == "dtcan_predict":
             return self._build_dtcan_predict_payload(request)
+        if self._request_format == "dtcan_predict_csv":
+            return self._build_dtcan_predict_csv_payload(request)
         raise DTMHAdapterError(
             f"Unsupported dtmh.httpRequestFormat='{self._request_format}'. "
-            "Use 'xdiabetes' or 'dtcan_predict'."
+            "Use 'xdiabetes', 'dtcan_predict', or 'dtcan_predict_csv'."
         )
 
     def _build_dtcan_predict_payload(self, request: DTMHRequest) -> dict[str, Any]:
@@ -133,6 +137,58 @@ class HTTPDTMHAdapter(DTMHAdapter):
             body = self._merge_dicts(body, request_override)
         return body
 
+    def _build_dtcan_predict_csv_payload(self, request: DTMHRequest) -> dict[str, Any]:
+        """Build the payload for the /predict_csv endpoint.
+
+        This mode sends cohort_dir + patient_id directly to the remote DTMH
+        HTTP service. The model runs server-side; no local deep-learning
+        libraries are needed.
+
+        Expected request body::
+
+            {
+                "cohort_dir": "Dataset/private_fundus",
+                "patient_id": 4,
+                "checkpoint_path": "checkpoints/deepdr_ehr_text/best.pt",
+                "config_path": "src/configs/deepdr_ehr_text.yaml",
+                "output_format": "probabilities"
+            }
+        """
+        # Extract cohort_dir and patient_id from the request's extra fields
+        # or from the patient case metadata.
+        cohort_dir = getattr(request, "cohort_dir", None)
+        patient_id_raw = getattr(request, "patient_id_csv", None)
+        if cohort_dir is None and isinstance(request.patient.metadata, dict):
+            cohort_dir = request.patient.metadata.get("cohort_dir")
+        if patient_id_raw is None and isinstance(request.patient.metadata, dict):
+            patient_id_raw = request.patient.metadata.get("patient_id_csv")
+        # Fallback: use patient_id from the patient case directly
+        if patient_id_raw is None:
+            raw_id = request.patient.patient_id
+            # Convert to int if the ID is numeric (the /predict_csv endpoint expects int)
+            try:
+                patient_id_raw = int(raw_id)
+            except (TypeError, ValueError):
+                patient_id_raw = raw_id
+
+        if not cohort_dir:
+            raise DTMHAdapterError(
+                "cohort_dir is required for dtcan_predict_csv format. "
+                "Set it in the request metadata or as a tool parameter."
+            )
+
+        body: dict[str, Any] = {
+            "cohort_dir": cohort_dir,
+            "patient_id": patient_id_raw,
+        }
+        if self._checkpoint_path:
+            body["checkpoint_path"] = self._checkpoint_path
+        if self._config_path:
+            body["config_path"] = self._config_path
+        if self._output_format:
+            body["output_format"] = self._output_format
+        return body
+
     def _normalize_response(
         self,
         request: DTMHRequest,
@@ -149,6 +205,13 @@ class HTTPDTMHAdapter(DTMHAdapter):
                 raise DTMHAdapterError(f"HTTP DTMH response could not be validated: {exc}") from exc
 
         if self._request_format == "dtcan_predict" or "predictions" in payload:
+            return self._normalize_dtcan_predict_response(
+                request=request,
+                request_payload=request_payload,
+                payload=payload,
+            )
+
+        if self._request_format == "dtcan_predict_csv":
             return self._normalize_dtcan_predict_response(
                 request=request,
                 request_payload=request_payload,
@@ -460,6 +523,11 @@ class HTTPDTMHAdapter(DTMHAdapter):
                 summary["data_modalities"] = sorted(data.keys())
             if isinstance(config, dict):
                 summary["config_keys"] = sorted(config.keys())
+        elif self._request_format == "dtcan_predict_csv":
+            if "cohort_dir" in payload:
+                summary["cohort_dir"] = payload["cohort_dir"]
+            if "patient_id" in payload:
+                summary["patient_id"] = payload["patient_id"]
         return summary
 
     @staticmethod

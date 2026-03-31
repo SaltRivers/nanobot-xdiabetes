@@ -742,13 +742,11 @@ def xdiabetes_onboard():
     console.print(f"\n{__logo__} X-Diabetes profile is ready!")
     console.print("\nNext steps:")
     console.print("  1. Add your LLM API key to [cyan]~/.x-diabetes/config.json[/cyan]")
-    console.print("  2. Start the profile: [cyan]x-diabetes agent[/cyan]")
+    console.print("  2. Configure your DTMH HTTP endpoint (default: [cyan]http://localhost:8000/predict_csv[/cyan])")
+    console.print("  3. Start the agent: [cyan]x-diabetes agent[/cyan]")
     console.print(
-        "  3. Try the demo case: "
-        "[cyan]x-diabetes agent -m \"Analyze demo_patient and generate a doctor report\"[/cyan]"
-    )
-    console.print(
-        "\n[dim]Note: the real DTMH is still training, so the default backend is a workflow-only mock adapter.[/dim]"
+        "  4. Try a query: "
+        "[cyan]x-diabetes agent -m \"Check whether patient 4 in Dataset/private_fundus has diabetes\"[/cyan]"
     )
 
 

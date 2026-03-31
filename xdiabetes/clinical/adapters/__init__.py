@@ -14,8 +14,8 @@ from xdiabetes.clinical.errors import DTMHAdapterError
 def build_dtmh_adapter(config: XDiabetesConfig) -> DTMHAdapter:
     """Build the configured DTMH adapter.
 
-    The mock backend is intentionally the default because the real DTMH is still
-    training for this repository state.
+    The default backend is HTTP, calling a remote DTMH service via
+    the /predict_csv endpoint. No local deep-learning libraries are needed.
     """
 
     backend = config.dtmh.backend

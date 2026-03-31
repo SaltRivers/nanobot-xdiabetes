@@ -84,6 +84,8 @@ def register_clinical_tools(
     report_builder = ReportBuilder(reports_dir)
     dtmh_adapter = build_dtmh_adapter(config)
 
+    # DTMH inference is the primary tool — register it first.
+    registry.register(XDiabetesDTMHTool(patient_store=patient_store, dtmh_adapter=dtmh_adapter))
     registry.register(
         XDiabetesPatientContextTool(
             patient_store=patient_store,
@@ -98,7 +100,6 @@ def register_clinical_tools(
             )
         )
     registry.register(XDiabetesGuidelineSearchTool(knowledge_router=knowledge_router))
-    registry.register(XDiabetesDTMHTool(patient_store=patient_store, dtmh_adapter=dtmh_adapter))
     registry.register(
         XDiabetesSafetyCheckTool(
             patient_store=patient_store,
@@ -118,6 +119,7 @@ def register_clinical_tools(
             default_mode=config.mode,
         )
     )
+    # Consultation is an optional higher-level orchestration tool, not the default.
     registry.register(
         XDiabetesConsultationTool(
             patient_store=patient_store,

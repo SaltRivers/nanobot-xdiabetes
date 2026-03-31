@@ -6,7 +6,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-from xdiabetes.clinical.constants import DEFAULT_CASE_ID
 from xdiabetes.clinical.errors import PatientCaseNotFoundError
 from xdiabetes.clinical.schemas import PatientCase, PatientContext
 
@@ -14,13 +13,13 @@ from xdiabetes.clinical.schemas import PatientCase, PatientContext
 class PatientStore:
     """Read structured patient cases from the workspace."""
 
-    def __init__(self, cases_dir: Path, default_patient_id: str = DEFAULT_CASE_ID):
+    def __init__(self, cases_dir: Path, default_patient_id: str | None = None):
         self._cases_dir = cases_dir
         self._default_patient_id = default_patient_id
         self._cases_dir.mkdir(parents=True, exist_ok=True)
 
     @property
-    def default_patient_id(self) -> str:
+    def default_patient_id(self) -> str | None:
         return self._default_patient_id
 
     def list_cases(self) -> list[str]:
@@ -30,8 +29,8 @@ class PatientStore:
     def load_case(self, patient_id: str | None = None, case_file: str | None = None) -> PatientCase:
         """Load a patient case by ID or explicit path.
 
-        Exactly one of ``patient_id`` or ``case_file`` is preferred. If neither
-        is supplied, the default demo case is loaded.
+        Exactly one of ``patient_id`` or ``case_file`` should be provided.
+        If neither is supplied and a default_patient_id is configured, it is used.
         """
 
         path = self._resolve_case_path(patient_id=patient_id, case_file=case_file)
@@ -89,4 +88,9 @@ class PatientStore:
         if case_file:
             return Path(case_file).expanduser()
         selected_id = patient_id or self._default_patient_id
+        if not selected_id:
+            raise PatientCaseNotFoundError(
+                "No patient_id or case_file specified and no default_patient_id configured. "
+                f"Available cases: {', '.join(self.list_cases()) or '(none)'}"
+            )
         return self._cases_dir / f"{selected_id}.json"

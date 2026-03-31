@@ -144,14 +144,18 @@ class MCPServerConfig(Base):
 
 
 class XDiabetesDTMHConfig(Base):
-    """DTMH backend configuration for the X-Diabetes profile."""
+    """DTMH backend configuration for the X-Diabetes profile.
 
-    backend: Literal["mock", "python", "http", "mcp", "disabled"] = "mock"
+    The DTMH model runs on a remote server. This agent calls it via HTTP API.
+    No deep-learning libraries are required locally.
+    """
+
+    backend: Literal["mock", "python", "http", "mcp", "disabled"] = "http"
     timeout_s: int = 30
     python_entrypoint: str = ""
-    http_base_url: str = ""
-    http_endpoint: str = "/analyze"
-    http_request_format: Literal["xdiabetes", "dtcan_predict"] = "xdiabetes"
+    http_base_url: str = "http://localhost:8000"
+    http_endpoint: str = "/predict_csv"
+    http_request_format: Literal["xdiabetes", "dtcan_predict", "dtcan_predict_csv"] = "dtcan_predict_csv"
     headers: dict[str, str] = Field(default_factory=dict)
     checkpoint_path: str = ""
     config_path: str = ""
@@ -214,7 +218,7 @@ class XDiabetesConfig(Base):
     enabled: bool = False
     workspace: str = "~/.x-diabetes/x-diabetes-workspace"
     mode: Literal["doctor", "patient"] = "doctor"
-    default_patient_id: str = "demo_patient"
+    default_patient_id: str | None = None
     cases_dir: str = "cases"
     knowledge_dir: str = "knowledge"
     reports_dir: str = "reports"

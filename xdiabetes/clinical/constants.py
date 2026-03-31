@@ -7,10 +7,9 @@ runtime, tools, and workspace bootstrap stay consistent.
 from __future__ import annotations
 
 DEFAULT_X_DIABETES_WORKSPACE = "~/.x-diabetes/x-diabetes-workspace"
-DEFAULT_CASE_ID = "demo_patient"
 DEFAULT_KNOWLEDGE_LIMIT = 3
 DEFAULT_REPORT_FILENAME_PREFIX = "xdiabetes_report"
-DEFAULT_DTMH_BACKEND = "mock"
+DEFAULT_DTMH_BACKEND = "http"
 DEFAULT_PATIENT_MEMORY_DIR = "patient_memory"
 DEFAULT_LEARNING_DIR = "learning"
 
