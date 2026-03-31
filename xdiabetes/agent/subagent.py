@@ -1,5 +1,7 @@
 """Subagent manager for background task execution."""
 
+from __future__ import annotations
+
 import asyncio
 import json
 import uuid
@@ -35,7 +37,7 @@ class SubagentManager:
         restrict_to_workspace: bool = False,
         x_diabetes_config: "XDiabetesConfig | None" = None,
     ):
-        from xdiabetes.config.schema import ExecToolConfig, WebSearchConfig
+        from xdiabetes.config.schema import ExecToolConfig, WebSearchConfig, XDiabetesConfig
 
         self.provider = provider
         self.workspace = workspace
@@ -45,7 +47,10 @@ class SubagentManager:
         self.web_proxy = web_proxy
         self.exec_config = exec_config or ExecToolConfig()
         self.restrict_to_workspace = restrict_to_workspace
-        self.x_diabetes_config = x_diabetes_config
+        # Keep accepting the historical constructor keyword while using a more
+        # neutral internal name throughout the implementation.
+        self.clinical_config = x_diabetes_config or XDiabetesConfig()
+        self.x_diabetes_config = self.clinical_config
         self._running_tasks: dict[str, asyncio.Task[None]] = {}
         self._session_tasks: dict[str, set[str]] = {}  # session_key -> {task_id, ...}
 
@@ -108,15 +113,14 @@ class SubagentManager:
             ))
             tools.register(WebSearchTool(config=self.web_search_config, proxy=self.web_proxy))
             tools.register(WebFetchTool(proxy=self.web_proxy))
-            if self.x_diabetes_config and self.x_diabetes_config.enabled:
-                from xdiabetes.x_diabetes import register_x_diabetes_tools
+            from xdiabetes.clinical import register_clinical_tools
 
-                register_x_diabetes_tools(
-                    tools,
-                    workspace=self.workspace,
-                    config=self.x_diabetes_config,
-                )
-            
+            register_clinical_tools(
+                tools,
+                workspace=self.workspace,
+                config=self.clinical_config,
+            )
+
             system_prompt = self._build_subagent_prompt()
             messages: list[dict[str, Any]] = [
                 {"role": "system", "content": system_prompt},
@@ -206,7 +210,7 @@ Summarize this naturally for the user. Keep it brief (1-2 sentences). Do not men
 
         await self.bus.publish_inbound(msg)
         logger.debug("Subagent [{}] announced result to {}:{}", task_id, origin['channel'], origin['chat_id'])
-    
+
     def _build_subagent_prompt(self) -> str:
         """Build a focused system prompt for the subagent."""
         from xdiabetes.agent.context import ContextBuilder

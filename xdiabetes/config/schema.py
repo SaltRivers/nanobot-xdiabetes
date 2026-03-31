@@ -150,6 +150,16 @@ class XDiabetesDTMHConfig(Base):
     timeout_s: int = 30
     python_entrypoint: str = ""
     http_base_url: str = ""
+    http_endpoint: str = "/analyze"
+    http_request_format: Literal["xdiabetes", "dtcan_predict"] = "xdiabetes"
+    headers: dict[str, str] = Field(default_factory=dict)
+    checkpoint_path: str = ""
+    config_path: str = ""
+    encode_raw: bool = True
+    output_format: Literal["logits", "probabilities", "binary"] = "probabilities"
+    return_latents: bool = False
+    threshold: float = 0.5
+    organ_filter: list[str] = Field(default_factory=list)
     mcp_server_name: str = ""
 
 
@@ -195,7 +205,11 @@ class XDiabetesLearningConfig(Base):
 
 
 class XDiabetesConfig(Base):
-    """Feature flag and runtime configuration for the X-Diabetes profile."""
+    """Runtime configuration for the X-Diabetes profile.
+
+    The legacy ``enabled`` field is kept for config compatibility, but the
+    main runtime now always operates in the X-Diabetes profile.
+    """
 
     enabled: bool = False
     workspace: str = "~/.x-diabetes/x-diabetes-workspace"
@@ -229,6 +243,15 @@ class Config(BaseSettings):
     gateway: GatewayConfig = Field(default_factory=GatewayConfig)
     tools: ToolsConfig = Field(default_factory=ToolsConfig)
     x_diabetes: XDiabetesConfig = Field(default_factory=XDiabetesConfig)
+
+    @property
+    def clinical(self) -> XDiabetesConfig:
+        """Canonical access to the diabetes-specific runtime configuration."""
+        return self.x_diabetes
+
+    @clinical.setter
+    def clinical(self, value: XDiabetesConfig) -> None:
+        self.x_diabetes = value
 
     @property
     def workspace_path(self) -> Path:

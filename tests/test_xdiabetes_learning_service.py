@@ -1,14 +1,14 @@
 from pathlib import Path
 
 from xdiabetes.config.schema import XDiabetesLearningConfig
-from xdiabetes.x_diabetes.learning import XDiabetesLearningService
-from xdiabetes.x_diabetes.learning.policy import build_default_policy
-from xdiabetes.x_diabetes.learning.privacy import PrivacyFilter, discover_case_ids
-from xdiabetes.x_diabetes.workspace import prepare_xdiabetes_workspace
+from xdiabetes.clinical.learning import XDiabetesLearningService
+from xdiabetes.clinical.learning.policy import build_default_policy
+from xdiabetes.clinical.learning.privacy import PrivacyFilter, discover_case_ids
+from xdiabetes.clinical.workspace import prepare_clinical_workspace
 
 
 def test_privacy_filter_redacts_secrets_and_case_ids(tmp_path: Path):
-    prepare_xdiabetes_workspace(tmp_path, mode="doctor", silent=True)
+    prepare_clinical_workspace(tmp_path, mode="doctor", silent=True)
     config = XDiabetesLearningConfig(enabled=True)
     policy = build_default_policy(config)
     privacy = PrivacyFilter(policy, discover_case_ids(tmp_path / "cases"))
@@ -23,7 +23,7 @@ def test_privacy_filter_redacts_secrets_and_case_ids(tmp_path: Path):
 
 
 def test_learning_service_creates_reviewable_draft_and_activates(tmp_path: Path):
-    prepare_xdiabetes_workspace(tmp_path, mode="doctor", silent=True)
+    prepare_clinical_workspace(tmp_path, mode="doctor", silent=True)
     config = XDiabetesLearningConfig(
         enabled=True,
         require_human_approval=True,

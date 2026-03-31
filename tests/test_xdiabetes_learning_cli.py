@@ -11,14 +11,14 @@ runner = CliRunner()
 
 def test_xdiabetes_agent_learning_flag_overrides_runtime(tmp_path: Path):
     config = Config()
-    config.x_diabetes.enabled = True
-    config.x_diabetes.workspace = str(tmp_path / "x-diabetes-workspace")
-    config.x_diabetes.learning.enabled = False
+    config.clinical.enabled = True
+    config.clinical.workspace = str(tmp_path / "x-diabetes-workspace")
+    config.clinical.learning.enabled = False
 
     with patch("xdiabetes.config.loader.load_config", return_value=config), \
          patch("xdiabetes.cli.commands._make_provider", return_value=object()), \
          patch("xdiabetes.config.paths.get_cron_dir", return_value=tmp_path / "cron"), \
-         patch("xdiabetes.x_diabetes.workspace.prepare_xdiabetes_workspace"), \
+         patch("xdiabetes.clinical.workspace.prepare_clinical_workspace"), \
          patch("xdiabetes.bus.queue.MessageBus"), \
          patch("xdiabetes.cron.service.CronService"), \
          patch("xdiabetes.agent.loop.AgentLoop") as mock_agent_loop_cls:
@@ -40,9 +40,9 @@ def test_xdiabetes_agent_learning_flag_overrides_runtime(tmp_path: Path):
 def test_xdiabetes_learning_status_command_renders(tmp_path: Path):
     workspace = tmp_path / "x-diabetes-workspace"
     config = Config()
-    config.x_diabetes.enabled = True
-    config.x_diabetes.workspace = str(workspace)
-    config.x_diabetes.learning.enabled = True
+    config.clinical.enabled = True
+    config.clinical.workspace = str(workspace)
+    config.clinical.learning.enabled = True
 
     with patch("xdiabetes.config.loader.load_config", return_value=config):
         result = runner.invoke(app, ["xdiabetes", "learning", "status"])

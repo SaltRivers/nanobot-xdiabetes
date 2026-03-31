@@ -1,12 +1,17 @@
 from pathlib import Path
+from unittest.mock import MagicMock
 
+import pytest
+
+from xdiabetes.agent.loop import AgentLoop
+from xdiabetes.bus.queue import MessageBus
 from xdiabetes.agent.tools.registry import ToolRegistry
 from xdiabetes.config.schema import XDiabetesConfig
-from xdiabetes.x_diabetes import prepare_xdiabetes_workspace, register_x_diabetes_tools
+from xdiabetes.clinical import prepare_clinical_workspace, register_clinical_tools
 
 
-def test_prepare_xdiabetes_workspace_creates_seed_assets(tmp_path: Path):
-    created = prepare_xdiabetes_workspace(tmp_path, mode="doctor", silent=True)
+def test_prepare_clinical_workspace_creates_seed_assets(tmp_path: Path):
+    created = prepare_clinical_workspace(tmp_path, mode="doctor", silent=True)
 
     assert (tmp_path / "AGENTS.md").exists()
     assert (tmp_path / "USER.md").exists()
@@ -19,24 +24,23 @@ def test_prepare_xdiabetes_workspace_creates_seed_assets(tmp_path: Path):
     assert created
 
 
-def test_xdiabetes_consultation_tool_runs_end_to_end(tmp_path: Path):
-    prepare_xdiabetes_workspace(tmp_path, mode="doctor", silent=True)
+@pytest.mark.asyncio
+async def test_xdiabetes_consultation_tool_runs_end_to_end(tmp_path: Path):
+    prepare_clinical_workspace(tmp_path, mode="doctor", silent=True)
 
     registry = ToolRegistry()
     config = XDiabetesConfig(enabled=True, mode="doctor")
-    register_x_diabetes_tools(registry, workspace=tmp_path, config=config)
+    register_clinical_tools(registry, workspace=tmp_path, config=config)
 
-    result = __import__("asyncio").run(
-        registry.execute(
-            "xdiabetes_consultation",
-            {
-                "patient_id": "demo_patient",
-                "clinical_question": "Review the complication risks and create a doctor report",
-                "task": "complication",
-                "audience": "doctor",
-                "save_report": True,
-            },
-        )
+    result = await registry.execute(
+        "xdiabetes_consultation",
+        {
+            "patient_id": "demo_patient",
+            "clinical_question": "Review the complication risks and create a doctor report",
+            "task": "complication",
+            "audience": "doctor",
+            "save_report": True,
+        },
     )
 
     assert "X-Diabetes Consultation Result" in result
@@ -46,3 +50,17 @@ def test_xdiabetes_consultation_tool_runs_end_to_end(tmp_path: Path):
     patient_memory_dir = tmp_path / "patient_memory" / "demo_patient"
     assert (patient_memory_dir / "summary.md").exists()
     assert (patient_memory_dir / "latest_snapshot.json").exists()
+
+
+def test_agent_loop_registers_xdiabetes_tools_even_when_legacy_enabled_flag_is_false(tmp_path: Path):
+    provider = MagicMock()
+    provider.get_default_model.return_value = "test-model"
+
+    loop = AgentLoop(
+        bus=MessageBus(),
+        provider=provider,
+        workspace=tmp_path,
+        x_diabetes_config=XDiabetesConfig(enabled=False),
+    )
+
+    assert "xdiabetes_consultation" in loop.tools.tool_names

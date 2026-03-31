@@ -177,10 +177,10 @@ x-diabetes learning rollback <skill_name>
 The most relevant code lives under the package root:
 
 ```text
-<package_root>/agent/tools/xdiabetes/     # X-Diabetes tool implementations
-<package_root>/x_diabetes/                # schemas, adapters, services, learning, workspace bootstrap
-<package_root>/x_diabetes/learning/       # observation, draft, eval, activation, monitoring pipeline
-<package_root>/templates/x_diabetes/      # workspace seed files, demo case, rules, knowledge
+<package_root>/agent/tools/diabetes/     # X-Diabetes tool implementations
+<package_root>/clinical/                # schemas, adapters, services, learning, workspace bootstrap
+<package_root>/clinical/learning/       # observation, draft, eval, activation, monitoring pipeline
+<package_root>/templates/workspace_seed/      # workspace seed files, demo case, rules, knowledge
 <package_root>/skills/x-diabetes/         # workflow playbook scaffold
 ```
 

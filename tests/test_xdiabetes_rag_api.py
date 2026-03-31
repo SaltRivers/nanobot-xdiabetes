@@ -3,12 +3,12 @@ from unittest.mock import patch
 
 import httpx
 
-from xdiabetes.x_diabetes import prepare_xdiabetes_workspace
-from xdiabetes.x_diabetes.services import KnowledgeRouter, KnowledgeStore, RAGAPIClient
+from xdiabetes.clinical import prepare_clinical_workspace
+from xdiabetes.clinical.services import KnowledgeRouter, KnowledgeStore, RAGAPIClient
 
 
 def test_knowledge_router_soft_fails_when_api_is_unavailable(tmp_path: Path):
-    prepare_xdiabetes_workspace(tmp_path, mode="doctor", silent=True)
+    prepare_clinical_workspace(tmp_path, mode="doctor", silent=True)
 
     router = KnowledgeRouter(
         backend="api",
@@ -20,7 +20,7 @@ def test_knowledge_router_soft_fails_when_api_is_unavailable(tmp_path: Path):
     )
 
     with patch(
-        "xdiabetes.x_diabetes.services.rag_api_client.httpx.post",
+        "xdiabetes.clinical.services.rag_api_client.httpx.post",
         side_effect=httpx.ConnectError("connection refused"),
     ):
         result = router.search(query="diabetic kidney disease follow-up", patient_id="demo_patient")
@@ -32,7 +32,7 @@ def test_knowledge_router_soft_fails_when_api_is_unavailable(tmp_path: Path):
 
 
 def test_knowledge_router_can_fallback_to_local_results(tmp_path: Path):
-    prepare_xdiabetes_workspace(tmp_path, mode="doctor", silent=True)
+    prepare_clinical_workspace(tmp_path, mode="doctor", silent=True)
 
     router = KnowledgeRouter(
         backend="api",
@@ -44,7 +44,7 @@ def test_knowledge_router_can_fallback_to_local_results(tmp_path: Path):
     )
 
     with patch(
-        "xdiabetes.x_diabetes.services.rag_api_client.httpx.post",
+        "xdiabetes.clinical.services.rag_api_client.httpx.post",
         side_effect=httpx.ConnectError("connection refused"),
     ):
         result = router.search(query="kidney complication diabetes", patient_id="demo_patient")

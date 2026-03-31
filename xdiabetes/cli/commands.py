@@ -1,4 +1,4 @@
-"""CLI commands for X-Diabetes and the compatibility runtime."""
+"""CLI commands for the X-Diabetes runtime."""
 
 import asyncio
 import os
@@ -32,9 +32,11 @@ from rich.table import Table
 from rich.text import Text
 
 from xdiabetes import __logo__, __version__
-from xdiabetes.config.paths import get_workspace_path
+from xdiabetes.config.paths import get_workspace_path as _get_workspace_path
 from xdiabetes.config.schema import Config
-from xdiabetes.utils.helpers import sync_workspace_templates
+
+# Stable re-export for reflective integrations and tests.
+get_workspace_path = _get_workspace_path
 
 app = typer.Typer(
     name="x-diabetes",
@@ -270,47 +272,8 @@ def main(
 
 @app.command()
 def onboard():
-    """Initialize runtime configuration and workspace."""
-    from xdiabetes.config.loader import get_config_path, load_config, save_config
-    from xdiabetes.config.schema import Config
-
-    config_path = get_config_path()
-
-    if config_path.exists():
-        console.print(f"[yellow]Config already exists at {config_path}[/yellow]")
-        console.print("  [bold]y[/bold] = overwrite with defaults (existing values will be lost)")
-        console.print("  [bold]N[/bold] = refresh config, keeping existing values and adding new fields")
-        if typer.confirm("Overwrite?"):
-            config = Config()
-            save_config(config)
-            console.print(f"[green]✓[/green] Config reset to defaults at {config_path}")
-        else:
-            config = load_config()
-            save_config(config)
-            console.print(f"[green]✓[/green] Config refreshed at {config_path} (existing values preserved)")
-    else:
-        save_config(Config())
-        console.print(f"[green]✓[/green] Created config at {config_path}")
-
-    console.print("[dim]Config template now uses `maxTokens` + `contextWindowTokens`; `memoryWindow` is no longer a runtime setting.[/dim]")
-
-    _onboard_plugins(config_path)
-
-    # Create workspace
-    workspace = get_workspace_path()
-
-    if not workspace.exists():
-        workspace.mkdir(parents=True, exist_ok=True)
-        console.print(f"[green]✓[/green] Created workspace at {workspace}")
-
-    sync_workspace_templates(workspace)
-
-    console.print(f"\n{__logo__} X-Diabetes is ready!")
-    console.print("\nNext steps:")
-    console.print("  1. Add your API key to [cyan]~/.x-diabetes/config.json[/cyan]")
-    console.print("     Get one at: https://openrouter.ai/keys")
-    console.print("  2. Chat: [cyan]x-diabetes agent -m \"Hello!\"[/cyan]")
-    console.print("\n[dim]Enable channels from the project configuration when needed.[/dim]")
+    """Initialize the X-Diabetes runtime configuration and workspace."""
+    xdiabetes_onboard()
 
 
 def _merge_missing_defaults(existing: Any, defaults: Any) -> Any:
@@ -423,8 +386,32 @@ def _load_runtime_config(config: str | None = None, workspace: str | None = None
         console.print(f"[dim]Using config: {config_path}[/dim]")
 
     loaded = load_config(config_path)
+    return _normalize_xdiabetes_runtime_config(loaded, workspace=workspace)
+
+
+def _normalize_xdiabetes_runtime_config(
+    loaded: Config,
+    *,
+    workspace: str | None = None,
+    mode: str | None = None,
+) -> Config:
+    """Normalize config so the main runtime always uses the X-Diabetes profile."""
+    loaded.clinical.enabled = True
+    if mode:
+        loaded.clinical.mode = mode
+
+    defaults = Config()
     if workspace:
-        loaded.agents.defaults.workspace = workspace
+        active_workspace = workspace
+    elif loaded.clinical.workspace != defaults.clinical.workspace:
+        active_workspace = loaded.clinical.workspace
+    elif loaded.agents.defaults.workspace != defaults.agents.defaults.workspace:
+        active_workspace = loaded.agents.defaults.workspace
+    else:
+        active_workspace = loaded.clinical.workspace
+
+    loaded.clinical.workspace = active_workspace
+    loaded.agents.defaults.workspace = active_workspace
     return loaded
 
 
@@ -433,13 +420,20 @@ def _load_xdiabetes_runtime_config(
     workspace: str | None = None,
     mode: str | None = None,
 ) -> Config:
-    """Load config for the X-Diabetes profile and switch to its workspace."""
-    loaded = _load_runtime_config(config=config, workspace=None)
-    loaded.x_diabetes.enabled = True
-    if mode:
-        loaded.x_diabetes.mode = mode
-    loaded.agents.defaults.workspace = workspace or loaded.x_diabetes.workspace
-    return loaded
+    """Load the unified X-Diabetes runtime configuration."""
+    loaded = _load_runtime_config(config=config, workspace=workspace)
+    return _normalize_xdiabetes_runtime_config(loaded, workspace=workspace, mode=mode)
+
+
+def _prepare_runtime_workspace(config: Config, *, silent: bool = False) -> list[str]:
+    """Ensure the active runtime workspace contains the X-Diabetes seed assets."""
+    from xdiabetes.clinical.workspace import prepare_clinical_workspace
+
+    return prepare_clinical_workspace(
+        config.workspace_path,
+        mode=config.clinical.mode,
+        silent=silent,
+    )
 
 
 def _make_xdiabetes_learning_service(
@@ -449,15 +443,15 @@ def _make_xdiabetes_learning_service(
     mode: str | None = None,
 ):
     """Build the X-Diabetes learning service for CLI management commands."""
-    from xdiabetes.x_diabetes.learning import XDiabetesLearningService
-    from xdiabetes.x_diabetes.workspace import prepare_xdiabetes_workspace
+    from xdiabetes.clinical.learning import XDiabetesLearningService
+    from xdiabetes.clinical.workspace import prepare_clinical_workspace
 
     loaded = _load_xdiabetes_runtime_config(config=config, workspace=workspace, mode=mode)
-    prepare_xdiabetes_workspace(loaded.workspace_path, mode=loaded.x_diabetes.mode, silent=True)
+    prepare_clinical_workspace(loaded.workspace_path, mode=loaded.clinical.mode, silent=True)
     return XDiabetesLearningService(
         workspace=loaded.workspace_path,
-        config=loaded.x_diabetes.learning,
-        mode=loaded.x_diabetes.mode,
+        config=loaded.clinical.learning,
+        mode=loaded.clinical.mode,
     )
 
 
@@ -502,7 +496,7 @@ def gateway(
     port = port if port is not None else config.gateway.port
 
     console.print(f"{__logo__} Starting X-Diabetes gateway v{__version__} on port {port}...")
-    sync_workspace_templates(config.workspace_path)
+    _prepare_runtime_workspace(config, silent=True)
     bus = MessageBus()
     provider = _make_provider(config)
     session_manager = SessionManager(config.workspace_path)
@@ -527,7 +521,7 @@ def gateway(
         session_manager=session_manager,
         mcp_servers=config.tools.mcp_servers,
         channels_config=config.channels,
-        x_diabetes_config=config.x_diabetes,
+        x_diabetes_config=config.clinical,
     )
 
     # Set cron callback (needs agent)
@@ -678,181 +672,26 @@ def agent(
     session_id: str = typer.Option("cli:direct", "--session", "-s", help="Session ID"),
     workspace: str | None = typer.Option(None, "--workspace", "-w", help="Workspace directory"),
     config: str | None = typer.Option(None, "--config", "-c", help="Config file path"),
+    mode: str = typer.Option("doctor", "--mode", help="Profile mode: doctor or patient"),
+    learning: bool | None = typer.Option(
+        None,
+        "--learning/--no-learning",
+        help="Temporarily enable or disable continuous learning for this run.",
+    ),
     markdown: bool = typer.Option(True, "--markdown/--no-markdown", help="Render assistant output as Markdown"),
     logs: bool = typer.Option(False, "--logs/--no-logs", help="Show runtime logs during chat"),
 ):
-    """Interact with the agent directly."""
-    from loguru import logger
-
-    from xdiabetes.agent.loop import AgentLoop
-    from xdiabetes.bus.queue import MessageBus
-    from xdiabetes.config.paths import get_cron_dir
-    from xdiabetes.cron.service import CronService
-
-    config = _load_runtime_config(config, workspace)
-    _print_deprecated_memory_window_notice(config)
-    sync_workspace_templates(config.workspace_path)
-
-    bus = MessageBus()
-    provider = _make_provider(config)
-
-    # Create cron service for tool usage (no callback needed for CLI unless running)
-    cron_store_path = get_cron_dir() / "jobs.json"
-    cron = CronService(cron_store_path)
-
-    if logs:
-        logger.enable("x-diabetes")
-    else:
-        logger.disable("x-diabetes")
-
-    agent_loop = AgentLoop(
-        bus=bus,
-        provider=provider,
-        workspace=config.workspace_path,
-        model=config.agents.defaults.model,
-        max_iterations=config.agents.defaults.max_tool_iterations,
-        context_window_tokens=config.agents.defaults.context_window_tokens,
-        web_search_config=config.tools.web.search,
-        web_proxy=config.tools.web.proxy or None,
-        exec_config=config.tools.exec,
-        cron_service=cron,
-        restrict_to_workspace=config.tools.restrict_to_workspace,
-        mcp_servers=config.tools.mcp_servers,
-        channels_config=config.channels,
-        x_diabetes_config=config.x_diabetes,
+    """Interact with the X-Diabetes agent directly."""
+    xdiabetes_agent(
+        message=message,
+        session_id=session_id,
+        workspace=workspace,
+        config=config,
+        mode=mode,
+        learning=learning,
+        markdown=markdown,
+        logs=logs,
     )
-
-    # Shared reference for progress callbacks
-    _thinking: _ThinkingSpinner | None = None
-
-    async def _cli_progress(content: str, *, tool_hint: bool = False) -> None:
-        ch = agent_loop.channels_config
-        if ch and tool_hint and not ch.send_tool_hints:
-            return
-        if ch and not tool_hint and not ch.send_progress:
-            return
-        _print_cli_progress_line(content, _thinking)
-
-    if message:
-        # Single message mode — direct call, no bus needed
-        async def run_once():
-            nonlocal _thinking
-            _thinking = _ThinkingSpinner(enabled=not logs)
-            with _thinking:
-                response = await agent_loop.process_direct(message, session_id, on_progress=_cli_progress)
-            _thinking = None
-            _print_agent_response(response, render_markdown=markdown)
-            await agent_loop.close_mcp()
-
-        asyncio.run(run_once())
-    else:
-        # Interactive mode — route through bus like other channels
-        from xdiabetes.bus.events import InboundMessage
-        _init_prompt_session()
-        console.print(f"{__logo__} Interactive mode (type [bold]exit[/bold] or [bold]Ctrl+C[/bold] to quit)\n")
-
-        if ":" in session_id:
-            cli_channel, cli_chat_id = session_id.split(":", 1)
-        else:
-            cli_channel, cli_chat_id = "cli", session_id
-
-        def _handle_signal(signum, frame):
-            sig_name = signal.Signals(signum).name
-            _restore_terminal()
-            console.print(f"\nReceived {sig_name}, goodbye!")
-            sys.exit(0)
-
-        signal.signal(signal.SIGINT, _handle_signal)
-        signal.signal(signal.SIGTERM, _handle_signal)
-        # SIGHUP is not available on Windows
-        if hasattr(signal, 'SIGHUP'):
-            signal.signal(signal.SIGHUP, _handle_signal)
-        # Ignore SIGPIPE to prevent silent process termination when writing to closed pipes
-        # SIGPIPE is not available on Windows
-        if hasattr(signal, 'SIGPIPE'):
-            signal.signal(signal.SIGPIPE, signal.SIG_IGN)
-
-        async def run_interactive():
-            bus_task = asyncio.create_task(agent_loop.run())
-            turn_done = asyncio.Event()
-            turn_done.set()
-            turn_response: list[str] = []
-
-            async def _consume_outbound():
-                while True:
-                    try:
-                        msg = await asyncio.wait_for(bus.consume_outbound(), timeout=1.0)
-                        if msg.metadata.get("_progress"):
-                            is_tool_hint = msg.metadata.get("_tool_hint", False)
-                            ch = agent_loop.channels_config
-                            if ch and is_tool_hint and not ch.send_tool_hints:
-                                pass
-                            elif ch and not is_tool_hint and not ch.send_progress:
-                                pass
-                            else:
-                                await _print_interactive_progress_line(msg.content, _thinking)
-
-                        elif not turn_done.is_set():
-                            if msg.content:
-                                turn_response.append(msg.content)
-                            turn_done.set()
-                        elif msg.content:
-                            await _print_interactive_response(msg.content, render_markdown=markdown)
-
-                    except asyncio.TimeoutError:
-                        continue
-                    except asyncio.CancelledError:
-                        break
-
-            outbound_task = asyncio.create_task(_consume_outbound())
-
-            try:
-                while True:
-                    try:
-                        _flush_pending_tty_input()
-                        user_input = await _read_interactive_input_async()
-                        command = user_input.strip()
-                        if not command:
-                            continue
-
-                        if _is_exit_command(command):
-                            _restore_terminal()
-                            console.print("\nGoodbye!")
-                            break
-
-                        turn_done.clear()
-                        turn_response.clear()
-
-                        await bus.publish_inbound(InboundMessage(
-                            channel=cli_channel,
-                            sender_id="user",
-                            chat_id=cli_chat_id,
-                            content=user_input,
-                        ))
-
-                        nonlocal _thinking
-                        _thinking = _ThinkingSpinner(enabled=not logs)
-                        with _thinking:
-                            await turn_done.wait()
-                        _thinking = None
-
-                        if turn_response:
-                            _print_agent_response(turn_response[0], render_markdown=markdown)
-                    except KeyboardInterrupt:
-                        _restore_terminal()
-                        console.print("\nGoodbye!")
-                        break
-                    except EOFError:
-                        _restore_terminal()
-                        console.print("\nGoodbye!")
-                        break
-            finally:
-                agent_loop.stop()
-                outbound_task.cancel()
-                await asyncio.gather(bus_task, outbound_task, return_exceptions=True)
-                await agent_loop.close_mcp()
-
-        asyncio.run(run_interactive())
 
 
 # ============================================================================
@@ -865,7 +704,7 @@ def xdiabetes_onboard():
     """Initialize the X-Diabetes profile, config, and isolated workspace."""
     from xdiabetes.config.loader import get_config_path, load_config, save_config
     from xdiabetes.config.schema import Config
-    from xdiabetes.x_diabetes.workspace import prepare_xdiabetes_workspace
+    from xdiabetes.clinical.workspace import prepare_clinical_workspace
 
     config_path = get_config_path()
 
@@ -878,21 +717,27 @@ def xdiabetes_onboard():
             console.print(f"[green]✓[/green] Config reset to defaults at {config_path}")
         else:
             config = load_config()
+            if config.agents.defaults.should_warn_deprecated_memory_window:
+                console.print(
+                    "[yellow]Hint:[/yellow] Refresh will migrate deprecated "
+                    "`memoryWindow` settings to `contextWindowTokens`."
+                )
             console.print(f"[green]✓[/green] Config refreshed at {config_path} (existing values preserved)")
     else:
         config = Config()
         console.print(f"[green]✓[/green] Created config at {config_path}")
 
-    config.x_diabetes.enabled = True
+    config.clinical.enabled = True
+    config.agents.defaults.workspace = config.clinical.workspace
     save_config(config)
     _onboard_plugins(config_path)
 
-    workspace = Path(config.x_diabetes.workspace).expanduser()
+    workspace = Path(config.clinical.workspace).expanduser()
     if not workspace.exists():
         workspace.mkdir(parents=True, exist_ok=True)
         console.print(f"[green]✓[/green] Created X-Diabetes workspace at {workspace}")
 
-    prepare_xdiabetes_workspace(workspace, mode=config.x_diabetes.mode)
+    prepare_clinical_workspace(workspace, mode=config.clinical.mode)
 
     console.print(f"\n{__logo__} X-Diabetes profile is ready!")
     console.print("\nNext steps:")
@@ -930,7 +775,6 @@ def xdiabetes_agent(
     from xdiabetes.bus.queue import MessageBus
     from xdiabetes.config.paths import get_cron_dir
     from xdiabetes.cron.service import CronService
-    from xdiabetes.x_diabetes.workspace import prepare_xdiabetes_workspace
 
     if mode not in {"doctor", "patient"}:
         console.print("[red]Error: --mode must be either 'doctor' or 'patient'.[/red]")
@@ -938,9 +782,9 @@ def xdiabetes_agent(
 
     config = _load_xdiabetes_runtime_config(config=config, workspace=workspace, mode=mode)
     if learning is not None:
-        config.x_diabetes.learning.enabled = learning
+        config.clinical.learning.enabled = learning
     _print_deprecated_memory_window_notice(config)
-    prepare_xdiabetes_workspace(config.workspace_path, mode=config.x_diabetes.mode)
+    _prepare_runtime_workspace(config, silent=True)
 
     bus = MessageBus()
     provider = _make_provider(config)
@@ -965,7 +809,7 @@ def xdiabetes_agent(
         restrict_to_workspace=config.tools.restrict_to_workspace,
         mcp_servers=config.tools.mcp_servers,
         channels_config=config.channels,
-        x_diabetes_config=config.x_diabetes,
+        x_diabetes_config=config.clinical,
     )
 
     _thinking: _ThinkingSpinner | None = None
@@ -994,7 +838,7 @@ def xdiabetes_agent(
     _init_prompt_session()
     console.print(
         f"{__logo__} X-Diabetes interactive mode "
-        f"([bold]{config.x_diabetes.mode}[/bold], type [bold]exit[/bold] or [bold]Ctrl+C[/bold] to quit)\n"
+        f"([bold]{config.clinical.mode}[/bold], type [bold]exit[/bold] or [bold]Ctrl+C[/bold] to quit)\n"
     )
 
     if ":" in session_id:
@@ -1250,8 +1094,8 @@ def xdiabetes_learning_enable(
     if config:
         set_config_path(config_path)
     loaded = load_config(config_path if config else None)
-    loaded.x_diabetes.enabled = True
-    loaded.x_diabetes.learning.enabled = True
+    loaded.clinical.enabled = True
+    loaded.clinical.learning.enabled = True
     save_config(loaded, config_path)
     console.print(f"[green]Enabled[/green] X-Diabetes continuous learning in {config_path}")
 
@@ -1267,7 +1111,7 @@ def xdiabetes_learning_disable(
     if config:
         set_config_path(config_path)
     loaded = load_config(config_path if config else None)
-    loaded.x_diabetes.learning.enabled = False
+    loaded.clinical.learning.enabled = False
     save_config(loaded, config_path)
     console.print(f"[green]Disabled[/green] X-Diabetes continuous learning in {config_path}")
 
@@ -1456,7 +1300,7 @@ def status():
     from xdiabetes.config.loader import get_config_path, load_config
 
     config_path = get_config_path()
-    config = load_config()
+    config = _normalize_xdiabetes_runtime_config(load_config())
     workspace = config.workspace_path
 
     console.print(f"{__logo__} X-Diabetes Status\n")

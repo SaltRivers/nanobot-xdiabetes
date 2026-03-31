@@ -11,9 +11,9 @@ This implementation keeps the runtime surface compact and adds a diabetes-focuse
 
 ## X-Diabetes-specific layer
 
-- `<package_root>/x_diabetes/` → schemas, adapters, workspace bootstrap, services
-- `<package_root>/agent/tools/xdiabetes/` → diabetes-focused tools
-- `<package_root>/templates/x_diabetes/` → isolated workspace seed data
+- `<package_root>/clinical/` → schemas, adapters, workspace bootstrap, services
+- `<package_root>/agent/tools/diabetes/` → diabetes-focused tools
+- `<package_root>/templates/workspace_seed/` → isolated workspace seed data
 - `<package_root>/skills/x-diabetes/` → workflow playbook
 - `patient_memory/` within the workspace → patient-level longitudinal memory
 - optional external RAG API → HTTP retrieval with soft-fail behavior

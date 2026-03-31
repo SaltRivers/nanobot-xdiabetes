@@ -1,40 +1,39 @@
-import asyncio
 import json
 from pathlib import Path
 from unittest.mock import patch
 
 import httpx
+import pytest
 
 from xdiabetes.agent.tools.registry import ToolRegistry
 from xdiabetes.config.schema import XDiabetesConfig
-from xdiabetes.x_diabetes import prepare_xdiabetes_workspace, register_x_diabetes_tools
+from xdiabetes.clinical import prepare_clinical_workspace, register_clinical_tools
 
 
-def test_consultation_persists_patient_memory_even_when_rag_api_fails(tmp_path: Path):
-    prepare_xdiabetes_workspace(tmp_path, mode="doctor", silent=True)
+@pytest.mark.asyncio
+async def test_consultation_persists_patient_memory_even_when_rag_api_fails(tmp_path: Path):
+    prepare_clinical_workspace(tmp_path, mode="doctor", silent=True)
 
     registry = ToolRegistry()
     config = XDiabetesConfig(enabled=True, mode="doctor")
     config.rag.backend = "api"
     config.rag.api_base_url = "http://127.0.0.1:8008"
     config.rag.ignore_failure = True
-    register_x_diabetes_tools(registry, workspace=tmp_path, config=config)
+    register_clinical_tools(registry, workspace=tmp_path, config=config)
 
     with patch(
-        "xdiabetes.x_diabetes.services.rag_api_client.httpx.post",
+        "xdiabetes.clinical.services.rag_api_client.httpx.post",
         side_effect=httpx.ConnectError("connection refused"),
     ):
-        result = asyncio.run(
-            registry.execute(
-                "xdiabetes_consultation",
-                {
-                    "patient_id": "demo_patient",
-                    "clinical_question": "Review complication risks and persist the consultation",
-                    "task": "complication",
-                    "audience": "doctor",
-                    "save_report": True,
-                },
-            )
+        result = await registry.execute(
+            "xdiabetes_consultation",
+            {
+                "patient_id": "demo_patient",
+                "clinical_question": "Review complication risks and persist the consultation",
+                "task": "complication",
+                "audience": "doctor",
+                "save_report": True,
+            },
         )
 
     assert "Knowledge Retrieval" in result

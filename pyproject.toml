@@ -71,7 +71,7 @@ dev = [
 ]
 
 [project.scripts]
-x-diabetes = "xdiabetes.cli.x_diabetes_entry:app"
+x-diabetes = "xdiabetes.cli.app:app"
 
 [build-system]
 requires = ["hatchling"]
@@ -115,4 +115,6 @@ ignore = ["E501"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+asyncio_default_test_loop_scope = "function"
 testpaths = ["tests"]

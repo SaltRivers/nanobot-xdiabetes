@@ -1,5 +1,4 @@
 import re
-import shutil
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -26,29 +25,28 @@ class _StopGateway(RuntimeError):
 
 
 @pytest.fixture
-def mock_paths():
+def mock_paths(tmp_path: Path, monkeypatch):
     """Mock config/workspace paths for test isolation."""
     with patch("xdiabetes.config.loader.get_config_path") as mock_cp, \
          patch("xdiabetes.config.loader.save_config") as mock_sc, \
          patch("xdiabetes.config.loader.load_config") as mock_lc, \
-         patch("xdiabetes.cli.commands.get_workspace_path") as mock_ws:
+         patch("xdiabetes.cli.commands._onboard_plugins"):
 
-        base_dir = Path("./test_onboard_data")
-        if base_dir.exists():
-            shutil.rmtree(base_dir)
-        base_dir.mkdir()
-
-        config_file = base_dir / "config.json"
-        workspace_dir = base_dir / "workspace"
+        monkeypatch.setenv("HOME", str(tmp_path))
+        config_file = tmp_path / ".x-diabetes" / "config.json"
+        workspace_dir = tmp_path / ".x-diabetes" / "x-diabetes-workspace"
 
         mock_cp.return_value = config_file
-        mock_ws.return_value = workspace_dir
-        mock_sc.side_effect = lambda config: config_file.write_text("{}")
+        mock_lc.return_value = Config()
+
+        def _save_config(_config, config_path=None):
+            path = config_path or config_file
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("{}")
+
+        mock_sc.side_effect = _save_config
 
         yield config_file, workspace_dir
-
-        if base_dir.exists():
-            shutil.rmtree(base_dir)
 
 
 def test_onboard_fresh_install(mock_paths):
@@ -59,23 +57,25 @@ def test_onboard_fresh_install(mock_paths):
 
     assert result.exit_code == 0
     assert "Created config" in result.stdout
-    assert "Created workspace" in result.stdout
-    assert "X-Diabetes is ready" in result.stdout
+    assert "Created X-Diabetes workspace" in result.stdout
+    assert "X-Diabetes profile is ready" in result.stdout
     assert config_file.exists()
     assert (workspace_dir / "AGENTS.md").exists()
-    assert (workspace_dir / "memory" / "MEMORY.md").exists()
+    assert (workspace_dir / "cases" / "demo_patient.json").exists()
 
 
 def test_onboard_existing_config_refresh(mock_paths):
     """Config exists, user declines overwrite — should refresh (load-merge-save)."""
     config_file, workspace_dir = mock_paths
+    config_file.parent.mkdir(parents=True, exist_ok=True)
     config_file.write_text('{"existing": true}')
 
     result = runner.invoke(app, ["onboard"], input="n\n")
 
     assert result.exit_code == 0
     assert "Config already exists" in result.stdout
-    assert "existing values preserved" in result.stdout
+    assert "Config refreshed" in result.stdout
+    assert "preserved" in result.stdout
     assert workspace_dir.exists()
     assert (workspace_dir / "AGENTS.md").exists()
 
@@ -83,6 +83,7 @@ def test_onboard_existing_config_refresh(mock_paths):
 def test_onboard_existing_config_overwrite(mock_paths):
     """Config exists, user confirms overwrite — should reset to defaults."""
     config_file, workspace_dir = mock_paths
+    config_file.parent.mkdir(parents=True, exist_ok=True)
     config_file.write_text('{"existing": true}')
 
     result = runner.invoke(app, ["onboard"], input="y\n")
@@ -208,7 +209,7 @@ def mock_agent_runtime(tmp_path):
 
     with patch("xdiabetes.config.loader.load_config", return_value=config) as mock_load_config, \
          patch("xdiabetes.config.paths.get_cron_dir", return_value=cron_dir), \
-         patch("xdiabetes.cli.commands.sync_workspace_templates") as mock_sync_templates, \
+         patch("xdiabetes.clinical.workspace.prepare_clinical_workspace") as mock_prepare_workspace, \
          patch("xdiabetes.cli.commands._make_provider", return_value=object()), \
          patch("xdiabetes.cli.commands._print_agent_response") as mock_print_response, \
          patch("xdiabetes.bus.queue.MessageBus"), \
@@ -224,7 +225,7 @@ def mock_agent_runtime(tmp_path):
         yield {
             "config": config,
             "load_config": mock_load_config,
-            "sync_templates": mock_sync_templates,
+            "prepare_workspace": mock_prepare_workspace,
             "agent_loop_cls": mock_agent_loop_cls,
             "agent_loop": agent_loop,
             "print_response": mock_print_response,
@@ -247,7 +248,7 @@ def test_agent_uses_default_config_when_no_workspace_or_config_flags(mock_agent_
 
     assert result.exit_code == 0
     assert mock_agent_runtime["load_config"].call_args.args == (None,)
-    assert mock_agent_runtime["sync_templates"].call_args.args == (
+    assert mock_agent_runtime["prepare_workspace"].call_args.args == (
         mock_agent_runtime["config"].workspace_path,
     )
     assert mock_agent_runtime["agent_loop_cls"].call_args.kwargs["workspace"] == (
@@ -281,7 +282,7 @@ def test_agent_config_sets_active_path(monkeypatch, tmp_path: Path) -> None:
     )
     monkeypatch.setattr("xdiabetes.config.loader.load_config", lambda _path=None: config)
     monkeypatch.setattr("xdiabetes.config.paths.get_cron_dir", lambda: config_file.parent / "cron")
-    monkeypatch.setattr("xdiabetes.cli.commands.sync_workspace_templates", lambda _path: None)
+    monkeypatch.setattr("xdiabetes.clinical.workspace.prepare_clinical_workspace", lambda _path, mode, silent=False: None)
     monkeypatch.setattr("xdiabetes.cli.commands._make_provider", lambda _config: object())
     monkeypatch.setattr("xdiabetes.bus.queue.MessageBus", lambda: object())
     monkeypatch.setattr("xdiabetes.cron.service.CronService", lambda _store: object())
@@ -312,7 +313,8 @@ def test_agent_overrides_workspace_path(mock_agent_runtime):
 
     assert result.exit_code == 0
     assert mock_agent_runtime["config"].agents.defaults.workspace == str(workspace_path)
-    assert mock_agent_runtime["sync_templates"].call_args.args == (workspace_path,)
+    assert mock_agent_runtime["config"].x_diabetes.workspace == str(workspace_path)
+    assert mock_agent_runtime["prepare_workspace"].call_args.args == (workspace_path,)
     assert mock_agent_runtime["agent_loop_cls"].call_args.kwargs["workspace"] == workspace_path
 
 
@@ -329,7 +331,8 @@ def test_agent_workspace_override_wins_over_config_workspace(mock_agent_runtime,
     assert result.exit_code == 0
     assert mock_agent_runtime["load_config"].call_args.args == (config_path.resolve(),)
     assert mock_agent_runtime["config"].agents.defaults.workspace == str(workspace_path)
-    assert mock_agent_runtime["sync_templates"].call_args.args == (workspace_path,)
+    assert mock_agent_runtime["config"].x_diabetes.workspace == str(workspace_path)
+    assert mock_agent_runtime["prepare_workspace"].call_args.args == (workspace_path,)
     assert mock_agent_runtime["agent_loop_cls"].call_args.kwargs["workspace"] == workspace_path
 
 
@@ -358,8 +361,8 @@ def test_gateway_uses_workspace_from_config_by_default(monkeypatch, tmp_path: Pa
     )
     monkeypatch.setattr("xdiabetes.config.loader.load_config", lambda _path=None: config)
     monkeypatch.setattr(
-        "xdiabetes.cli.commands.sync_workspace_templates",
-        lambda path: seen.__setitem__("workspace", path),
+        "xdiabetes.clinical.workspace.prepare_clinical_workspace",
+        lambda path, mode, silent=False: seen.__setitem__("workspace", path),
     )
     monkeypatch.setattr(
         "xdiabetes.cli.commands._make_provider",
@@ -386,8 +389,8 @@ def test_gateway_workspace_option_overrides_config(monkeypatch, tmp_path: Path) 
     monkeypatch.setattr("xdiabetes.config.loader.set_config_path", lambda _path: None)
     monkeypatch.setattr("xdiabetes.config.loader.load_config", lambda _path=None: config)
     monkeypatch.setattr(
-        "xdiabetes.cli.commands.sync_workspace_templates",
-        lambda path: seen.__setitem__("workspace", path),
+        "xdiabetes.clinical.workspace.prepare_clinical_workspace",
+        lambda path, mode, silent=False: seen.__setitem__("workspace", path),
     )
     monkeypatch.setattr(
         "xdiabetes.cli.commands._make_provider",
@@ -414,7 +417,7 @@ def test_gateway_warns_about_deprecated_memory_window(monkeypatch, tmp_path: Pat
 
     monkeypatch.setattr("xdiabetes.config.loader.set_config_path", lambda _path: None)
     monkeypatch.setattr("xdiabetes.config.loader.load_config", lambda _path=None: config)
-    monkeypatch.setattr("xdiabetes.cli.commands.sync_workspace_templates", lambda _path: None)
+    monkeypatch.setattr("xdiabetes.clinical.workspace.prepare_clinical_workspace", lambda _path, mode, silent=False: None)
     monkeypatch.setattr(
         "xdiabetes.cli.commands._make_provider",
         lambda _config: (_ for _ in ()).throw(_StopGateway("stop")),
@@ -438,7 +441,7 @@ def test_gateway_uses_config_directory_for_cron_store(monkeypatch, tmp_path: Pat
     monkeypatch.setattr("xdiabetes.config.loader.set_config_path", lambda _path: None)
     monkeypatch.setattr("xdiabetes.config.loader.load_config", lambda _path=None: config)
     monkeypatch.setattr("xdiabetes.config.paths.get_cron_dir", lambda: config_file.parent / "cron")
-    monkeypatch.setattr("xdiabetes.cli.commands.sync_workspace_templates", lambda _path: None)
+    monkeypatch.setattr("xdiabetes.clinical.workspace.prepare_clinical_workspace", lambda _path, mode, silent=False: None)
     monkeypatch.setattr("xdiabetes.cli.commands._make_provider", lambda _config: object())
     monkeypatch.setattr("xdiabetes.bus.queue.MessageBus", lambda: object())
     monkeypatch.setattr("xdiabetes.session.manager.SessionManager", lambda _workspace: object())
@@ -466,7 +469,7 @@ def test_gateway_uses_configured_port_when_cli_flag_is_missing(monkeypatch, tmp_
 
     monkeypatch.setattr("xdiabetes.config.loader.set_config_path", lambda _path: None)
     monkeypatch.setattr("xdiabetes.config.loader.load_config", lambda _path=None: config)
-    monkeypatch.setattr("xdiabetes.cli.commands.sync_workspace_templates", lambda _path: None)
+    monkeypatch.setattr("xdiabetes.clinical.workspace.prepare_clinical_workspace", lambda _path, mode, silent=False: None)
     monkeypatch.setattr(
         "xdiabetes.cli.commands._make_provider",
         lambda _config: (_ for _ in ()).throw(_StopGateway("stop")),
@@ -488,7 +491,7 @@ def test_gateway_cli_port_overrides_configured_port(monkeypatch, tmp_path: Path)
 
     monkeypatch.setattr("xdiabetes.config.loader.set_config_path", lambda _path: None)
     monkeypatch.setattr("xdiabetes.config.loader.load_config", lambda _path=None: config)
-    monkeypatch.setattr("xdiabetes.cli.commands.sync_workspace_templates", lambda _path: None)
+    monkeypatch.setattr("xdiabetes.clinical.workspace.prepare_clinical_workspace", lambda _path, mode, silent=False: None)
     monkeypatch.setattr(
         "xdiabetes.cli.commands._make_provider",
         lambda _config: (_ for _ in ()).throw(_StopGateway("stop")),

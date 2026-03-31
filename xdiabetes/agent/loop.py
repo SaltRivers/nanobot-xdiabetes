@@ -66,7 +66,7 @@ class AgentLoop:
         channels_config: ChannelsConfig | None = None,
         x_diabetes_config: "XDiabetesConfig | None" = None,
     ):
-        from xdiabetes.config.schema import ExecToolConfig, WebSearchConfig
+        from xdiabetes.config.schema import ExecToolConfig, WebSearchConfig, XDiabetesConfig
 
         self.bus = bus
         self.channels_config = channels_config
@@ -80,7 +80,10 @@ class AgentLoop:
         self.exec_config = exec_config or ExecToolConfig()
         self.cron_service = cron_service
         self.restrict_to_workspace = restrict_to_workspace
-        self.x_diabetes_config = x_diabetes_config
+        # Keep accepting the historical constructor keyword while using a more
+        # neutral internal name throughout the runtime.
+        self.clinical_config = x_diabetes_config or XDiabetesConfig()
+        self.x_diabetes_config = self.clinical_config
 
         self.context = ContextBuilder(workspace)
         self.sessions = session_manager or SessionManager(workspace)
@@ -94,7 +97,7 @@ class AgentLoop:
             web_proxy=web_proxy,
             exec_config=self.exec_config,
             restrict_to_workspace=restrict_to_workspace,
-            x_diabetes_config=x_diabetes_config,
+            x_diabetes_config=self.clinical_config,
         )
 
         self._running = False
@@ -115,14 +118,14 @@ class AgentLoop:
             get_tool_definitions=self.tools.get_definitions,
         )
         self._xdiabetes_learning = None
-        if self.x_diabetes_config and self.x_diabetes_config.enabled and self.x_diabetes_config.learning.enabled:
+        if self.clinical_config.learning.enabled:
             try:
-                from xdiabetes.x_diabetes.learning import XDiabetesLearningService
+                from xdiabetes.clinical.learning import XDiabetesLearningService
 
                 self._xdiabetes_learning = XDiabetesLearningService(
                     workspace=self.workspace,
-                    config=self.x_diabetes_config.learning,
-                    mode=self.x_diabetes_config.mode,
+                    config=self.clinical_config.learning,
+                    mode=self.clinical_config.mode,
                 )
             except Exception as exc:  # pragma: no cover - defensive startup path
                 logger.warning("Failed to initialize X-Diabetes learning service: {}", exc)
@@ -147,14 +150,13 @@ class AgentLoop:
         self.tools.register(SpawnTool(manager=self.subagents))
         if self.cron_service:
             self.tools.register(CronTool(self.cron_service))
-        if self.x_diabetes_config and self.x_diabetes_config.enabled:
-            from xdiabetes.x_diabetes import register_x_diabetes_tools
+        from xdiabetes.clinical import register_clinical_tools
 
-            register_x_diabetes_tools(
-                self.tools,
-                workspace=self.workspace,
-                config=self.x_diabetes_config,
-            )
+        register_clinical_tools(
+            self.tools,
+            workspace=self.workspace,
+            config=self.clinical_config,
+        )
 
     async def _connect_mcp(self) -> None:
         """Connect to configured MCP servers (one-time, lazy)."""
