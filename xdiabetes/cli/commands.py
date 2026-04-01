@@ -775,7 +775,7 @@ def xdiabetes_agent(
     from xdiabetes.agent.loop import AgentLoop
     from xdiabetes.bus.events import InboundMessage
     from xdiabetes.bus.queue import MessageBus
-    from xdiabetes.config.paths import get_cron_dir
+    from xdiabetes.config.paths import get_cron_dir, get_logs_dir
     from xdiabetes.cron.service import CronService
 
     if mode not in {"doctor", "patient"}:
@@ -793,9 +793,19 @@ def xdiabetes_agent(
     cron = CronService(get_cron_dir() / "jobs.json")
 
     if logs:
-        logger.enable("x-diabetes")
+        logger.enable("xdiabetes")
+        log_file = get_logs_dir() / "agent.log"
+        logger.add(
+            str(log_file),
+            level="DEBUG",
+            format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level:<8} | {name}:{function}:{line} | {message}",
+            rotation="10 MB",
+            retention=3,
+            encoding="utf-8",
+            enqueue=True,
+        )
     else:
-        logger.disable("x-diabetes")
+        logger.disable("xdiabetes")
 
     agent_loop = AgentLoop(
         bus=bus,

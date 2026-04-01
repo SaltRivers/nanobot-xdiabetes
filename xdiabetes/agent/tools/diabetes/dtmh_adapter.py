@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from loguru import logger
+
 from xdiabetes.agent.tools.base import Tool
 from xdiabetes.clinical.adapters.base import DTMHAdapter
 from xdiabetes.clinical.schemas import DTMHRequest, PatientCase
@@ -97,6 +99,13 @@ class XDiabetesDTMHTool(Tool):
         output_format: str | None = None,
         **_: Any,
     ) -> str:
+        logger.debug(
+            "xdiabetes_dtmh execute: cohort_dir={} patient_id={} case_file={} task={} "
+            "checkpoint_path={} config_path={} output_format={}",
+            cohort_dir, patient_id, case_file, task,
+            checkpoint_path, config_path, output_format,
+        )
+
         # Apply per-call overrides to the adapter if provided
         if checkpoint_path and hasattr(self._dtmh_adapter, "_checkpoint_path"):
             self._dtmh_adapter._checkpoint_path = checkpoint_path
@@ -127,5 +136,11 @@ class XDiabetesDTMHTool(Tool):
                 clinical_question=clinical_question,
                 audience=audience,
             )
+        )
+        logger.debug(
+            "xdiabetes_dtmh result: patient_id={} backend={} summary={}",
+            result.patient_id,
+            result.backend,
+            (result.summary or "")[:200],
         )
         return dump_json(result.model_dump(mode="json"))

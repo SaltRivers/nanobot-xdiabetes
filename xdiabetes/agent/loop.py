@@ -221,10 +221,25 @@ class AgentLoop:
 
             tool_defs = self.tools.get_definitions()
 
+            logger.debug(
+                "LLM request: model={} messages={} tools={}",
+                self.model,
+                len(messages),
+                len(tool_defs),
+            )
+
             response = await self.provider.chat_with_retry(
                 messages=messages,
                 tools=tool_defs,
                 model=self.model,
+            )
+
+            logger.debug(
+                "LLM response: finish_reason={} tool_calls={} content_len={} usage={}",
+                response.finish_reason,
+                len(response.tool_calls),
+                len(response.content or ""),
+                response.usage,
             )
 
             if response.has_tool_calls:
@@ -251,6 +266,10 @@ class AgentLoop:
                     args_str = json.dumps(tool_call.arguments, ensure_ascii=False)
                     logger.info("Tool call: {}({})", tool_call.name, args_str[:200])
                     result = await self.tools.execute(tool_call.name, tool_call.arguments)
+                    result_preview = (
+                        result[:500] + "...(truncated)" if len(result) > 500 else result
+                    )
+                    logger.debug("Tool result [{}]: {}", tool_call.name, result_preview)
                     messages = self.context.add_tool_result(
                         messages, tool_call.id, tool_call.name, result
                     )

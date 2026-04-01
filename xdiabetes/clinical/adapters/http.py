@@ -2,15 +2,28 @@
 
 from __future__ import annotations
 
+import json as _json
 from pathlib import Path
 from typing import Any
 
 import httpx
+from loguru import logger
 
 from xdiabetes.clinical.adapters.base import DTMHAdapter
 from xdiabetes.clinical.errors import DTMHAdapterError
 from xdiabetes.clinical.schemas import DTMHRequest, DTMHResult, PatientCase
 from xdiabetes.config.schema import XDiabetesDTMHConfig
+
+
+def _truncate_json(data: Any, max_len: int = 1000) -> str:
+    """Serialize data to JSON string, truncating if too long."""
+    try:
+        s = _json.dumps(data, ensure_ascii=False, default=str)
+    except Exception:
+        s = str(data)
+    if len(s) > max_len:
+        return s[:max_len] + "...(truncated)"
+    return s
 
 
 class HTTPDTMHAdapter(DTMHAdapter):
@@ -51,6 +64,15 @@ class HTTPDTMHAdapter(DTMHAdapter):
     def analyze(self, request: DTMHRequest) -> DTMHResult:
         endpoint = f"{self._base_url}{self._endpoint}"
         request_payload = self._build_request_payload(request)
+
+        logger.debug(
+            "DTMH HTTP request: POST {} payload_keys={} format={}",
+            endpoint,
+            sorted(request_payload.keys()),
+            self._request_format,
+        )
+        logger.debug("DTMH HTTP payload: {}", _truncate_json(request_payload))
+
         try:
             response = httpx.post(
                 endpoint,
@@ -60,13 +82,25 @@ class HTTPDTMHAdapter(DTMHAdapter):
             )
             response.raise_for_status()
         except httpx.HTTPError as exc:  # pragma: no cover - depends on external service
+            logger.debug("DTMH HTTP request failed: {}", exc)
             raise DTMHAdapterError(f"HTTP DTMH request failed: {exc}") from exc
+
+        logger.debug(
+            "DTMH HTTP response: status={} content_length={}",
+            response.status_code,
+            len(response.content),
+        )
 
         try:
             payload = response.json()
         except ValueError as exc:  # pragma: no cover - depends on external service
+            logger.debug(
+                "DTMH HTTP response was not valid JSON: {}",
+                response.text[:300],
+            )
             raise DTMHAdapterError("HTTP DTMH response was not valid JSON.") from exc
 
+        logger.debug("DTMH HTTP response body: {}", _truncate_json(payload))
         return self._normalize_response(request, request_payload, payload)
 
     def _build_request_payload(self, request: DTMHRequest) -> dict[str, Any]:

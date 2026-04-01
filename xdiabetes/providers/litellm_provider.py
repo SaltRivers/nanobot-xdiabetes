@@ -1,6 +1,7 @@
 """LiteLLM provider implementation for multi-provider support."""
 
 import hashlib
+import json
 import os
 import secrets
 import string
@@ -277,10 +278,32 @@ class LiteLLMProvider(LLMProvider):
             kwargs["tools"] = tools
             kwargs["tool_choice"] = tool_choice or "auto"
 
+        logger.debug(
+            "LiteLLM chat request: model={} messages={} tools={} temperature={} max_tokens={}",
+            kwargs.get("model"),
+            len(kwargs.get("messages", [])),
+            len(kwargs.get("tools") or []),
+            kwargs.get("temperature"),
+            kwargs.get("max_tokens"),
+        )
+        msg_dump = json.dumps(kwargs.get("messages", []), ensure_ascii=False, default=str)
+        if len(msg_dump) > 3000:
+            msg_dump = msg_dump[:3000] + "...(truncated)"
+        logger.debug("LiteLLM messages detail: {}", msg_dump)
+
         try:
             response = await acompletion(**kwargs)
-            return self._parse_response(response)
+            parsed = self._parse_response(response)
+            logger.debug(
+                "LiteLLM chat response: finish_reason={} tool_calls={} content_len={} usage={}",
+                parsed.finish_reason,
+                len(parsed.tool_calls),
+                len(parsed.content or ""),
+                parsed.usage,
+            )
+            return parsed
         except Exception as e:
+            logger.debug("LiteLLM chat error: {}", str(e)[:300])
             # Return error as content for graceful handling
             return LLMResponse(
                 content=f"Error calling LLM: {str(e)}",
