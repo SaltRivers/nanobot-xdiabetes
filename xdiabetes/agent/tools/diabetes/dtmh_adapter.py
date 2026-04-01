@@ -55,7 +55,7 @@ class XDiabetesDTMHTool(Tool):
                     "description": "Path to the cohort dataset directory on the DTMH server (e.g. 'Dataset/private_fundus').",
                 },
                 "patient_id": {
-                    "type": ["string", "integer"],
+                    "type": "integer",
                     "description": "Patient identifier. For CSV prediction this is typically an integer index.",
                 },
                 "case_file": {"type": "string", "description": "Optional explicit local case JSON path."},
