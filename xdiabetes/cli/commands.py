@@ -693,6 +693,10 @@ def agent(
         logs=logs,
     )
 
+"""
+x-diabetes agent --config config_path --logs
+"""
+
 
 # ============================================================================
 # X-Diabetes Commands
