@@ -155,6 +155,16 @@ x-diabetes agent -m "Check whether patient 4 in Dataset/private_fundus has diabe
 x-diabetes agent --mode patient -m "Explain the diabetes risk for patient 4"
 ```
 
+### DTMH update 0401
+```bash
+x-diabetes agent --logs -m "Check whether patient 4 in Dataset/private_fundus has diabetes" --config .configs/config.json
+
+- stderr: You'll see INFO and DEBUG logs in the console
+- File: ~/.x-diabetes/logs/agent.log will contain the full structured trace with format:
+2026-04-01 13:42:06.210 | DEBUG    | xdiabetes.clinical.adapters.http:analyze:68 | DTMH HTTP request: POST http://localhost:8000/predict_csv
+payload_keys=[...] format=dtcan_predict_csv
+```
+
 ## Default Output Locations
 
 ```text
