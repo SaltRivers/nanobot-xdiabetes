@@ -1,6 +1,6 @@
 ### User Qeury
 ```
-Please check the whether the patient with patient_ids 4 in cohort `Dataset/private_fundus` has diabetes, and what would the probability be?
+Please check that whether the patient with patient_ids 4 in cohort `Dataset/private_fundus` has diabetes, and what would the probability be?
 ```
 
 ### agent call tool (Whatever tool that reach the same effect, can be html post or python code etc.)
